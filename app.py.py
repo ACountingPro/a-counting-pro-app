@@ -157,7 +157,7 @@ with tab1:
     with col_in:
         st.write(t["trip_details"])
         
-        # --- NOWOŚĆ: WYBÓR STATUSU ZATRUDNIENIA ---
+        # --- WYBÓR STATUSU ZATRUDNIENIA ---
         emp_status = st.radio(t["emp_status_lbl"], [t["emp_paye"], t["emp_se"]])
         st.write("---")
         
@@ -239,26 +239,22 @@ with tab4:
 
 st.markdown("---")
 
-# 🔥🔥🔥 CZYSTY BANER BIZNESOWY (Z PRZYCISKIEM WHATSAPP) 🔥🔥🔥
-whatsapp_number = "447000000000" # <--- ZMIEŃ NA SWÓJ BRYTYJSKI NUMER BEZ PLUSA (np. 447717219718)
+# 🔥🔥🔥 SUBTELNY, EKSPERCKI BANER KIERUJĄCY DO LINKTREE 🔥🔥🔥
+linktree_url = "https://linktr.ee/ACountingPro"
 
 if lang == "EN":
-    st.error(f"""
-    ### 🚨 TAX YEAR ENDS ON APRIL 5TH! Don't leave your money with HMRC. 🚨
-    Whether you are an Agency Worker or **Self-Employed**, you could be owed hundreds of pounds in tax relief for mileage, uniforms, and work expenses.
+    st.info(f"""
+    ### 💡 Need help claiming your tax relief or filing Self-Assessment?
+    We know dealing with HMRC can be stressful, especially with the April 5th deadline approaching. Whether you are looking for a simple step-by-step guide to claim it yourself, need a quick consultation, or want us to handle everything for you – we've got you covered.
     
-    Need help claiming your tax refund or filing your Self-Assessment before the deadline? I can do it for you quickly and securely.
-    
-    👉 **[CLICK HERE TO WHATSAPP ME NOW](https://wa.me/{whatsapp_number})** | A Counting Pro
+    👉 **[Click here to visit our profile and see how we can help]({linktree_url})**
     """)
 else:
-    st.error(f"""
-    ### 🚨 ROK PODATKOWY KOŃCZY SIĘ 5 KWIETNIA! Nie zostawiaj pieniędzy w urzędzie. 🚨
-    Nieważne czy pracujesz przez agencję (PAYE) czy jesteś **Self-Employed**. HMRC prawdopodobnie wisi Ci setki funtów zwrotu za mile, pranie uniformu i koszty pracy.
+    st.info(f"""
+    ### 💡 Potrzebujesz pomocy ze zwrotem podatku lub rozliczeniem Self-Assessment?
+    Wiemy, że sprawy z urzędem bywają stresujące. Niezależnie od tego, czy szukasz prostej instrukcji "krok po kroku", aby odzyskać pieniądze samodzielnie, potrzebujesz szybkiej porady, czy szukasz pełnej obsługi – jesteśmy tu, by pomóc.
     
-    Nie wiesz jak wypełnić formularz P87 lub poprawnie złożyć rozliczenie Self-Assessment? Zrobię to za Ciebie szybko i bezbłędnie przed upływem terminu.
-    
-    👉 **[KLIKNIJ TU I NAPISZ DO MNIE NA WHATSAPP](https://wa.me/{whatsapp_number})** | A Counting Pro
+    👉 **[Kliknij tutaj, aby sprawdzić jak możemy Ci pomóc]({linktree_url})**
     """)
 
 st.markdown(f"<p style='text-align: center; color: grey;'>© {date.today().year} A Counting Pro | Financial health is mental wealth</p>", unsafe_allow_html=True)
