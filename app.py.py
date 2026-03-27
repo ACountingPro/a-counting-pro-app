@@ -10,7 +10,7 @@ from PIL import Image
 # 1. Konfiguracja strony
 st.set_page_config(page_title="A Counting Pro", page_icon="💰", layout="wide")
 
-# 2. Funkcja PDF (Pełna separacja językowa!)
+# 2. Funkcja PDF
 def create_pdf(df, total_owed, lang):
     pdf = FPDF()
     pdf.add_page()
@@ -27,7 +27,7 @@ def create_pdf(df, total_owed, lang):
     pdf.ln(5)
 
     pdf.set_font("Helvetica", "B", 10)
-    headers = ["Date", "Miles", "Agency (p)", "Relief (GBP)"] if lang == "EN" else ["Data", "Mile", "Agencja (p)", "Ulga (GBP)"]
+    headers = ["Date", "Miles", "Agency (p)", "Relief/Expense (£)"] if lang == "EN" else ["Data", "Mile", "Agencja (p)", "Ulga/Koszt (£)"]
     for h in headers:
         pdf.cell(45, 10, text=h, border=1)
     pdf.ln()
@@ -36,13 +36,17 @@ def create_pdf(df, total_owed, lang):
     for _, row in df.iterrows():
         pdf.cell(45, 10, text=str(row['Date']), border=1)
         pdf.cell(45, 10, text=str(row['Miles']), border=1)
-        pdf.cell(45, 10, text=str(row['Agency']), border=1)
+        
+        # Jeśli Self-Employed (agencja = 0), pokazujemy N/A lub 0
+        agency_val = "N/A" if row['Agency'] == 0.0 else str(row['Agency'])
+        pdf.cell(45, 10, text=agency_val, border=1)
+        
         pdf.cell(45, 10, text=f"{row['Relief']:.2f}", border=1)
         pdf.ln()
 
     pdf.ln(10)
     pdf.set_font("Helvetica", "B", 12)
-    total_text = f"TOTAL TAX RELIEF: GBP {total_owed:.2f}" if lang == "EN" else f"LACZNA ULGA: GBP {total_owed:.2f}"
+    total_text = f"TOTAL RELIEF/EXPENSE: GBP {total_owed:.2f}" if lang == "EN" else f"LACZNA ULGA/KOSZT: GBP {total_owed:.2f}"
     pdf.cell(200, 10, text=total_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
     pdf.ln(20)
@@ -87,6 +91,9 @@ t = {
     "tab4": "🧘 Calm" if lang == "EN" else "🧘 Spokój",
     
     "trip_details": "#### 🚗 Trip Details" if lang == "EN" else "#### 🚗 Szczegóły przejazdu",
+    "emp_status_lbl": "Employment Status" if lang == "EN" else "Status zatrudnienia",
+    "emp_paye": "Agency Worker (PAYE)" if lang == "EN" else "Pracownik Agencji (PAYE)",
+    "emp_se": "Self-Employed (Sole Trader)" if lang == "EN" else "Samozatrudniony (Self-Employed)",
     "date_lbl": "Trip Date" if lang == "EN" else "Data przejazdu",
     "miles_lbl": "Total Miles" if lang == "EN" else "Suma mil",
     "agency_lbl": "Agency rate (p/mile)" if lang == "EN" else "Stawka agencji (pensy/mila)",
@@ -96,10 +103,12 @@ t = {
     "hmrc_step": "HMRC Allowance (45p):" if lang == "EN" else "Limit HMRC (45p):",
     "paid_step": "Agency Reimbursement:" if lang == "EN" else "Zwrot z agencji:",
     "relief_step": "Final Tax Relief:" if lang == "EN" else "Końcowa ulga podatkowa:",
+    "se_step": "Allowable Business Expense:" if lang == "EN" else "Koszt firmowy obniżający podatek:",
+    "se_info": "💡 As Self-Employed, you can deduct the full 45p per mile as a business expense!" if lang == "EN" else "💡 Jako samozatrudniony odliczasz pełne 45p za milę jako koszt uzyskania przychodu!",
     "toast_add": "Trip added to history!" if lang == "EN" else "Dodano przejazd do historii!",
     
     "metric_miles": "Total Miles" if lang == "EN" else "Suma Mil",
-    "metric_relief": "Total Tax Relief" if lang == "EN" else "Suma Ulgi",
+    "metric_relief": "Total Relief / Expense" if lang == "EN" else "Suma Ulgi / Kosztów",
     "chart_h": "### Analysis" if lang == "EN" else "### Analiza",
     "btn_pdf": "📥 Download PDF Report" if lang == "EN" else "📥 Pobierz Raport PDF",
     "btn_clear": "Clear History" if lang == "EN" else "Wyczyść historię",
@@ -147,20 +156,37 @@ with tab1:
     
     with col_in:
         st.write(t["trip_details"])
+        
+        # --- NOWOŚĆ: WYBÓR STATUSU ZATRUDNIENIA ---
+        emp_status = st.radio(t["emp_status_lbl"], [t["emp_paye"], t["emp_se"]])
+        st.write("---")
+        
         d = st.date_input(t["date_lbl"], date.today())
         m = st.number_input(t["miles_lbl"], min_value=0.0, value=100.0, step=1.0)
-        a = st.number_input(t["agency_lbl"], min_value=0.0, value=25.0, step=1.0)
         
-        hmrc_total = m * 0.45
-        agency_total = m * (a / 100)
-        relief = max(0.0, hmrc_total - agency_total)
+        if emp_status == t["emp_paye"]:
+            a = st.number_input(t["agency_lbl"], min_value=0.0, value=25.0, step=1.0)
+            hmrc_total = m * 0.45
+            agency_total = m * (a / 100)
+            relief = max(0.0, hmrc_total - agency_total)
+        else:
+            a = 0.0 # Brak stawki agencji przy samozatrudnieniu
+            st.info(t["se_info"])
+            hmrc_total = m * 0.45
+            agency_total = 0.0
+            relief = hmrc_total # Całość wrzucamy w koszty
 
     with col_math:
         st.write(t["math_h"])
-        st.latex(r"Relief = (Miles \times 0.45) - (Miles \times \frac{Agency\_Rate}{100})")
-        st.write(f"**1. {t['hmrc_step']}** £{hmrc_total:.2f}")
-        st.write(f"**2. {t['paid_step']}** £{agency_total:.2f}")
-        st.info(f"**3. {t['relief_step']}** £{relief:.2f}")
+        if emp_status == t["emp_paye"]:
+            st.latex(r"Relief = (Miles \times 0.45) - (Miles \times \frac{Agency\_Rate}{100})")
+            st.write(f"**1. {t['hmrc_step']}** £{hmrc_total:.2f}")
+            st.write(f"**2. {t['paid_step']}** £{agency_total:.2f}")
+            st.success(f"**3. {t['relief_step']}** £{relief:.2f}")
+        else:
+            st.latex(r"Expense = Miles \times 0.45")
+            st.write(f"**1. {t['hmrc_step']}** £{hmrc_total:.2f}")
+            st.success(f"**2. {t['se_step']}** £{relief:.2f}")
 
     if st.button(t["btn_add"], use_container_width=True):
         new_row = pd.DataFrame({'Date': [d], 'Miles': [m], 'Agency': [a], 'Relief': [relief]})
@@ -212,4 +238,10 @@ with tab4:
         st.balloons()
 
 st.markdown("---")
+
+# 🔥🔥🔥 BANER SPRZEDAŻOWY NA DOLE (CALL TO ACTION) 🔥🔥🔥
+whatsapp_number = "447000000000" # <--- ZMIEŃ NA SWÓJ BRYTYJSKI NUMER BEZ PLUSA (np. 447717219718)
+
+
+
 st.markdown(f"<p style='text-align: center; color: grey;'>© {date.today().year} A Counting Pro | Financial health is mental wealth</p>", unsafe_allow_html=True)
