@@ -239,9 +239,26 @@ with tab4:
 
 st.markdown("---")
 
-# 🔥🔥🔥 BANER SPRZEDAŻOWY NA DOLE (CALL TO ACTION) 🔥🔥🔥
+# 🔥🔥🔥 CZYSTY BANER BIZNESOWY (Z PRZYCISKIEM WHATSAPP) 🔥🔥🔥
 whatsapp_number = "447000000000" # <--- ZMIEŃ NA SWÓJ BRYTYJSKI NUMER BEZ PLUSA (np. 447717219718)
 
-
+if lang == "EN":
+    st.error(f"""
+    ### 🚨 TAX YEAR ENDS ON APRIL 5TH! Don't leave your money with HMRC. 🚨
+    Whether you are an Agency Worker or **Self-Employed**, you could be owed hundreds of pounds in tax relief for mileage, uniforms, and work expenses.
+    
+    Need help claiming your tax refund or filing your Self-Assessment before the deadline? I can do it for you quickly and securely.
+    
+    👉 **[CLICK HERE TO WHATSAPP ME NOW](https://wa.me/{whatsapp_number})** | A Counting Pro
+    """)
+else:
+    st.error(f"""
+    ### 🚨 ROK PODATKOWY KOŃCZY SIĘ 5 KWIETNIA! Nie zostawiaj pieniędzy w urzędzie. 🚨
+    Nieważne czy pracujesz przez agencję (PAYE) czy jesteś **Self-Employed**. HMRC prawdopodobnie wisi Ci setki funtów zwrotu za mile, pranie uniformu i koszty pracy.
+    
+    Nie wiesz jak wypełnić formularz P87 lub poprawnie złożyć rozliczenie Self-Assessment? Zrobię to za Ciebie szybko i bezbłędnie przed upływem terminu.
+    
+    👉 **[KLIKNIJ TU I NAPISZ DO MNIE NA WHATSAPP](https://wa.me/{whatsapp_number})** | A Counting Pro
+    """)
 
 st.markdown(f"<p style='text-align: center; color: grey;'>© {date.today().year} A Counting Pro | Financial health is mental wealth</p>", unsafe_allow_html=True)
