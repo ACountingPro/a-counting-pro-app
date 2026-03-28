@@ -4,6 +4,7 @@ import pandas as pd
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from datetime import date
+import io
 
 try:
     from PIL import Image
@@ -13,6 +14,14 @@ except ImportError:
 
 st.set_page_config(page_title="A Counting Pro", page_icon="💰", layout="wide")
 
+# ── POMOCNICZA: rok podatkowy ─────────────────────────────────────────────────
+def get_tax_year():
+    today = date.today()
+    if today.month > 4 or (today.month == 4 and today.day >= 6):
+        return f"{today.year}/{today.year + 1}"
+    else:
+        return f"{today.year - 1}/{today.year}"
+
 # ── 1. PDF GENERATOR ──────────────────────────────────────────────────────────
 def create_pdf(df, total_miles_relief, uniform_amount, lang):
     pdf = FPDF()
@@ -20,29 +29,40 @@ def create_pdf(df, total_miles_relief, uniform_amount, lang):
 
     title = "Mileage & Tax Relief Report" if lang == "EN" else "Raport Przebiegu i Ulgi Podatkowej"
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, text=f"{title} - A Counting Pro", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
-    pdf.ln(6)
+    pdf.cell(0, 10, text=f"{title} - A Counting Pro",
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+    pdf.ln(4)
 
     pdf.set_font("Helvetica", size=9)
     today_str = date.today().strftime("%d/%m/%Y")
-    date_label = f"Generated: {today_str}" if lang == "EN" else f"Wygenerowano: {today_str}"
-    pdf.cell(0, 7, text=date_label, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    tax_year  = get_tax_year()
+    line1 = f"Generated: {today_str}  |  Tax Year: {tax_year}" if lang == "EN" \
+            else f"Wygenerowano: {today_str}  |  Rok podatkowy: {tax_year}"
+    pdf.cell(0, 7, text=line1, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(4)
 
-    COL = [38, 32, 40, 60]
-    headers = (["Date", "Miles", "Agency (p)", "Relief/Expense (GBP)"] if lang == "EN"
-               else ["Data", "Mile", "Agencja (p)", "Ulga/Koszt (GBP)"])
-    pdf.set_font("Helvetica", "B", 9)
+    COL = [24, 30, 30, 30, 20, 26, 30]
+    headers = (["Date", "From", "To", "Purpose", "Miles", "Agency(p)", "Relief(GBP)"] if lang == "EN"
+               else ["Data", "Skad", "Dokad", "Cel", "Mile", "Agencja(p)", "Ulga(GBP)"])
+    pdf.set_font("Helvetica", "B", 8)
     for w, h in zip(COL, headers):
         pdf.cell(w, 9, text=h, border=1)
     pdf.ln()
 
-    pdf.set_font("Helvetica", size=9)
+    pdf.set_font("Helvetica", size=8)
     for _, row in df.iterrows():
         agency_val = "N/A" if float(row["Agency"]) == 0.0 else str(row["Agency"])
-        vals = [str(row["Date"]), str(row["Miles"]), agency_val, f"{float(row['Relief']):.2f}"]
+        vals = [
+            str(row["Date"]),
+            str(row.get("From", "")),
+            str(row.get("To", "")),
+            str(row.get("Purpose", "")),
+            str(row["Miles"]),
+            agency_val,
+            f"{float(row['Relief']):.2f}",
+        ]
         for w, v in zip(COL, vals):
-            pdf.cell(w, 9, text=v, border=1)
+            pdf.cell(w, 9, text=v[:14], border=1)
         pdf.ln()
 
     pdf.ln(8)
@@ -80,7 +100,8 @@ def create_pdf(df, total_miles_relief, uniform_amount, lang):
 
 # ── 2. PAMIEC SESJI ───────────────────────────────────────────────────────────
 if "history" not in st.session_state:
-    st.session_state.history = pd.DataFrame(columns=["Date", "Miles", "Agency", "Relief"])
+    st.session_state.history = pd.DataFrame(
+        columns=["Date", "From", "To", "Purpose", "Miles", "Agency", "Relief"])
 
 # ── 3. JEZYK ──────────────────────────────────────────────────────────────────
 lang = st.sidebar.selectbox("Choose Language / Wybierz Jezyk", ("EN", "PL"))
@@ -131,10 +152,12 @@ with col_m:
         st.markdown("<h1 style='text-align:center;color:#002147;'>A Counting Pro</h1>",
                     unsafe_allow_html=True)
 
-    st.markdown("<h3 style='text-align:center;color:#D4AF37;font-style:italic;'>Financial health is mental wealth</h3>",
-                unsafe_allow_html=True)
+    st.markdown(
+        "<h3 style='text-align:center;color:#D4AF37;font-style:italic;'>Financial health is mental wealth</h3>",
+        unsafe_allow_html=True)
     sub = "Support for Care, Cleaning & Warehouse Professionals" if EN else "Wsparcie dla Care, Cleaning i Magazynow"
-    st.markdown(f"<p style='text-align:center;color:#002147;'><b>{sub}</b></p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align:center;color:#002147;'><b>{sub}</b></p>",
+                unsafe_allow_html=True)
 
 st.write("---")
 
@@ -156,7 +179,28 @@ with tab1:
         st.write("---")
 
         d = st.date_input("Trip Date" if EN else "Data przejazdu", date.today())
-        m = st.number_input("Total Miles" if EN else "Suma mil", min_value=0.0, value=15.0, step=1.0)
+
+        col_from, col_to = st.columns(2)
+        with col_from:
+            from_loc = st.text_input(
+                "From / Skad" if EN else "Skad",
+                placeholder="e.g. Home / Dom")
+        with col_to:
+            to_loc = st.text_input(
+                "To / Dokad" if EN else "Dokad",
+                placeholder="e.g. Client address")
+
+        purpose = st.text_input(
+            "Purpose of trip" if EN else "Cel przejazdu",
+            placeholder="e.g. Client visit / Wizyta u klienta")
+
+        m_raw = st.number_input("Miles (one way)" if EN else "Mile (w jedna strone)",
+                                min_value=0.0, value=15.0, step=1.0)
+        round_trip = st.checkbox(
+            "Round trip — multiply miles x2" if EN else "Powrot — pomnoz mile x2")
+        m = m_raw * 2 if round_trip else m_raw
+        if round_trip:
+            st.caption(f"{'Total miles (×2)' if EN else 'Suma mil (×2)'}: **{m:.1f}**")
 
         is_paye = "PAYE" in emp_status
         if is_paye:
@@ -181,6 +225,7 @@ with tab1:
 
     with col_math:
         st.write("#### 🔍 Calculation" if EN else "#### 🔍 Wyliczenia")
+        st.write(f"**{'Miles counted' if EN else 'Liczba mil'}:** {m:.1f}")
         st.write(f"**{'HMRC Allowance (45p)' if EN else 'Limit HMRC (45p)'}:** £{hmrc_total:.2f}")
         if is_paye:
             st.write(f"**{'Agency Reimbursement' if EN else 'Zwrot z agencji'}:** £{agency_total:.2f}")
@@ -188,11 +233,20 @@ with tab1:
         st.caption(
             "ℹ️ Estimate only. HMRC makes the final decision on all tax relief claims." if EN
             else "ℹ️ Szacunek orientacyjny. Ostateczna decyzja nalezy do HMRC.")
+        st.info(f"{'Current Tax Year' if EN else 'Aktualny rok podatkowy'}: **{get_tax_year()}**")
 
-    btn_add = "➕ Add to Report" if EN else "➕ Dodaj do Raportu"
-    if st.button(btn_add, use_container_width=True):
-        new_row = pd.DataFrame({"Date": [d], "Miles": [m], "Agency": [a], "Relief": [relief]})
-        st.session_state.history = pd.concat([st.session_state.history, new_row], ignore_index=True)
+    if st.button("➕ Add to Report" if EN else "➕ Dodaj do Raportu", use_container_width=True):
+        new_row = pd.DataFrame({
+            "Date":    [d],
+            "From":    [from_loc],
+            "To":      [to_loc],
+            "Purpose": [purpose],
+            "Miles":   [m],
+            "Agency":  [a],
+            "Relief":  [relief],
+        })
+        st.session_state.history = pd.concat(
+            [st.session_state.history, new_row], ignore_index=True)
         st.toast("✅ Added to report!" if EN else "✅ Dodano do raportu!")
 
 # ═══════════ TAB 2 — RAPORT I PDF ════════════════════════════════════════════
@@ -207,11 +261,11 @@ with tab2:
 
         if add_uniform:
             sector_options = {
-                "Care / Cleaning (£60)":          60.0,
-                "NHS Nurse / Midwife (£185)":     185.0,
-                "Retail / Warehouse (£60)":       60.0,
-                "Police Officer (£140)":          140.0,
-                "Other / Inne (enter manually)":  None,
+                "Care / Cleaning (£60)":         60.0,
+                "NHS Nurse / Midwife (£185)":    185.0,
+                "Retail / Warehouse (£60)":      60.0,
+                "Police Officer (£140)":         140.0,
+                "Other / Inne (enter manually)": None,
             }
             selected = st.selectbox(
                 "Select your sector" if EN else "Wybierz swoja branze",
@@ -232,26 +286,40 @@ with tab2:
         final_total = total_m_relief + uniform_amount
         st.write("---")
 
-        m1, m2 = st.columns(2)
-        m1.metric("Total Miles" if EN else "Suma Mil",
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Total Miles" if EN else "Suma Mil",
                   f"{st.session_state.history['Miles'].sum():.1f}")
-        m2.metric("Total Relief / Expense" if EN else "Calkowita Ulga / Koszt",
-                  f"£{final_total:.2f}")
+        c2.metric("Total Relief" if EN else "Suma Ulgi", f"£{final_total:.2f}")
+        c3.metric("Tax Year" if EN else "Rok Podatkowy", get_tax_year())
 
         st.dataframe(st.session_state.history, use_container_width=True)
+        st.write("---")
 
-        pdf_bytes = create_pdf(st.session_state.history, total_m_relief, uniform_amount, lang)
-        st.download_button(
-            label="📥 Download PDF Report for HMRC" if EN else "📥 Pobierz Raport PDF dla Urzedu",
-            data=pdf_bytes,
-            file_name=f"HMRC_Report_{date.today()}.pdf",
-            mime="application/pdf",
-            type="primary",
-            use_container_width=True,
-        )
+        dl1, dl2 = st.columns(2)
+        with dl1:
+            pdf_bytes = create_pdf(st.session_state.history, total_m_relief, uniform_amount, lang)
+            st.download_button(
+                label="📥 Download PDF for HMRC" if EN else "📥 Pobierz PDF dla Urzedu",
+                data=pdf_bytes,
+                file_name=f"HMRC_Mileage_{get_tax_year().replace('/','_')}.pdf",
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+            )
+        with dl2:
+            csv_buffer = io.StringIO()
+            st.session_state.history.to_csv(csv_buffer, index=False)
+            st.download_button(
+                label="📊 Export to Excel / CSV" if EN else "📊 Eksportuj do Excel / CSV",
+                data=csv_buffer.getvalue(),
+                file_name=f"HMRC_Mileage_{get_tax_year().replace('/','_')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
         if st.button("🗑 Clear All Data" if EN else "🗑 Wyczysc wszystkie dane"):
-            st.session_state.history = pd.DataFrame(columns=["Date", "Miles", "Agency", "Relief"])
+            st.session_state.history = pd.DataFrame(
+                columns=["Date", "From", "To", "Purpose", "Miles", "Agency", "Relief"])
             st.rerun()
     else:
         st.info("No data yet. Add your trips in the Calculator tab!" if EN
@@ -265,7 +333,7 @@ if EN:
     st.error(
         "### 🚨 WEEKEND FLASH SALE (-50%)! Only 8 days left until Tax Year End!\n"
         "Got your report? Don't leave money at HMRC and don't pay accountants £100 for a simple form!\n\n"
-        "Until **Sunday midnight only**, get our visual E-book for just **£9.99** (was £39.00).\n"
+        "Until **Sunday midnight only**, get our visual E-book for just **£9.99** (was £39.00). "
         "It shows you exactly where to click on Gov.uk to submit safely. On Monday the price goes back up!\n\n"
         f"[👉 GRAB THE E-BOOK OR BOOK OUR VIP SERVICE]({linktree_url})"
     )
@@ -273,7 +341,7 @@ else:
     st.error(
         "### 🚨 WEEKENDOWA WYPRZEDAZ (-50%)! Zostalo tylko 8 dni do konca roku podatkowego!\n"
         "Masz raport? Nie zostawiaj pieniedzy w urzedzie i nie plac posrednikom £100!\n\n"
-        "Tylko do **niedzieli o polnocy**, moj wizualny e-book jest za **£9.99** (zamiast £39.00).\n"
+        "Tylko do **niedzieli o polnocy**, moj wizualny e-book jest za **£9.99** (zamiast £39.00). "
         "Pokazuje na zdjeciach z Gov.uk, jak bezpiecznie wyslac wniosek. W poniedzialek cena wraca!\n\n"
         f"[👉 KLIKNIJ — E-BOOK LUB USLUGA VIP]({linktree_url})"
     )
