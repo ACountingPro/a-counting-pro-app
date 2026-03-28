@@ -280,7 +280,7 @@ with tab2:
         if add_uniform:
             sector_options = {
                 "Care / Cleaning (60 GBP)": 60.0,
-                "NHS Nurse / Midwife (185 GBP)": 125.0,
+                "NHS Nurse / Midwife (125 GBP)": 125.0,
                 "Retail / Warehouse (60 GBP)": 60.0,
                 "Police Officer (140 GBP)": 140.0,
                 "Other / Inne (enter manually)": None,
