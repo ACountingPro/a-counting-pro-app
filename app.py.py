@@ -1,260 +1,283 @@
 import streamlit as st
-import time
 import os
 import pandas as pd
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from datetime import date
-from PIL import Image
 
-# 1. Konfiguracja strony
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
 st.set_page_config(page_title="A Counting Pro", page_icon="💰", layout="wide")
 
-# 2. Funkcja PDF
-def create_pdf(df, total_owed, lang):
+# ── 1. PDF GENERATOR ──────────────────────────────────────────────────────────
+def create_pdf(df, total_miles_relief, uniform_amount, lang):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Helvetica", "B", 16)
-    
-    title = "Mileage & Tax Relief Report" if lang == "EN" else "Raport Przebiegu i Ulgi Podatkowej"
-    pdf.cell(200, 10, text=f"{title} - A Counting Pro", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
-    pdf.ln(10)
-    
-    pdf.set_font("Helvetica", size=10)
-    today = date.today().strftime("%d/%m/%Y")
-    date_text = f"Generated: {today}" if lang == "EN" else f"Wygenerowano: {today}"
-    pdf.cell(200, 7, text=date_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.ln(5)
 
-    pdf.set_font("Helvetica", "B", 10)
-    headers = ["Date", "Miles", "Agency (p)", "Relief/Expense (£)"] if lang == "EN" else ["Data", "Mile", "Agencja (p)", "Ulga/Koszt (£)"]
-    for h in headers:
-        pdf.cell(45, 10, text=h, border=1)
+    title = "Mileage & Tax Relief Report" if lang == "EN" else "Raport Przebiegu i Ulgi Podatkowej"
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, text=f"{title} - A Counting Pro", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+    pdf.ln(6)
+
+    pdf.set_font("Helvetica", size=9)
+    today_str = date.today().strftime("%d/%m/%Y")
+    date_label = f"Generated: {today_str}" if lang == "EN" else f"Wygenerowano: {today_str}"
+    pdf.cell(0, 7, text=date_label, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.ln(4)
+
+    COL = [38, 32, 40, 60]
+    headers = (["Date", "Miles", "Agency (p)", "Relief/Expense (GBP)"] if lang == "EN"
+               else ["Data", "Mile", "Agencja (p)", "Ulga/Koszt (GBP)"])
+    pdf.set_font("Helvetica", "B", 9)
+    for w, h in zip(COL, headers):
+        pdf.cell(w, 9, text=h, border=1)
     pdf.ln()
 
-    pdf.set_font("Helvetica", size=10)
+    pdf.set_font("Helvetica", size=9)
     for _, row in df.iterrows():
-        pdf.cell(45, 10, text=str(row['Date']), border=1)
-        pdf.cell(45, 10, text=str(row['Miles']), border=1)
-        
-        # Jeśli Self-Employed (agencja = 0), pokazujemy N/A lub 0
-        agency_val = "N/A" if row['Agency'] == 0.0 else str(row['Agency'])
-        pdf.cell(45, 10, text=agency_val, border=1)
-        
-        pdf.cell(45, 10, text=f"{row['Relief']:.2f}", border=1)
+        agency_val = "N/A" if float(row["Agency"]) == 0.0 else str(row["Agency"])
+        vals = [str(row["Date"]), str(row["Miles"]), agency_val, f"{float(row['Relief']):.2f}"]
+        for w, v in zip(COL, vals):
+            pdf.cell(w, 9, text=v, border=1)
         pdf.ln()
 
-    pdf.ln(10)
+    pdf.ln(8)
+    pdf.set_font("Helvetica", size=10)
+    miles_line = (f"Total relief from miles: GBP {total_miles_relief:.2f}" if lang == "EN"
+                  else f"Suma ulgi za mile: GBP {total_miles_relief:.2f}")
+    pdf.cell(0, 6, text=miles_line, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    final_total = total_miles_relief
+    if uniform_amount > 0:
+        uni_text = (f"+ GBP {uniform_amount:.2f} (Uniform Laundry Flat Rate)" if lang == "EN"
+                    else f"+ GBP {uniform_amount:.2f} (Zryczaltowany koszt prania uniformu)")
+        pdf.cell(0, 6, text=uni_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        final_total += uniform_amount
+
+    pdf.ln(4)
     pdf.set_font("Helvetica", "B", 12)
-    total_text = f"TOTAL RELIEF/EXPENSE: GBP {total_owed:.2f}" if lang == "EN" else f"LACZNA ULGA/KOSZT: GBP {total_owed:.2f}"
-    pdf.cell(200, 10, text=total_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    
-    pdf.ln(20)
-    pdf.set_font("Helvetica", "I", 10)
-    pdf.cell(200, 10, text="Financial health is mental wealth", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
-    
+    total_label = (f"TOTAL RELIEF / EXPENSE: GBP {final_total:.2f}" if lang == "EN"
+                   else f"LACZNA ULGA / KOSZT: GBP {final_total:.2f}")
+    pdf.cell(0, 10, text=total_label, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    pdf.ln(10)
+    pdf.set_font("Helvetica", "I", 8)
+    disclaimer = ("This report is for estimation purposes only. HMRC makes the final decision on all tax relief claims."
+                  if lang == "EN" else
+                  "Raport ma charakter szacunkowy. Ostateczna decyzja o przyznaniu ulgi nalezy do HMRC.")
+    pdf.multi_cell(0, 6, text=disclaimer)
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.cell(0, 8, text="Financial health is mental wealth | linktr.ee/ACountingPro",
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+
     return bytes(pdf.output())
 
-# 3. Inicjalizacja pamięci
-if 'history' not in st.session_state:
-    st.session_state.history = pd.DataFrame(columns=['Date', 'Miles', 'Agency', 'Relief'])
 
-# 4. Design & Sidebar
-lang = st.sidebar.selectbox("Choose Language / Wybierz Język", ("EN", "PL"))
+# ── 2. PAMIEC SESJI ───────────────────────────────────────────────────────────
+if "history" not in st.session_state:
+    st.session_state.history = pd.DataFrame(columns=["Date", "Miles", "Agency", "Relief"])
 
-st.markdown("""
-    <style>
-    .stApp { background-color: #fcfaf5 !important; }
-    h1, h2, h3, h4 { color: #002147 !important; font-family: 'Georgia', serif; }
-    .stButton>button {
-        background-color: #002147 !important;
-        color: #D4AF37 !important;
-        border-radius: 25px !important;
-        border: 2px solid #D4AF37 !important;
-        font-weight: bold !important;
-    }
-    .stButton>button:hover { background-color: #D4AF37 !important; color: #002147 !important; }
-    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
-        background-color: #002147 !important;
-        color: #D4AF37 !important;
-    }
-    [data-testid="stMetricValue"] { color: #D4AF37 !important; }
-    </style>
-    """, unsafe_allow_html=True)
+# ── 3. JEZYK ──────────────────────────────────────────────────────────────────
+lang = st.sidebar.selectbox("Choose Language / Wybierz Jezyk", ("EN", "PL"))
+EN = lang == "EN"
 
-t = {
-    "motto": "Financial health is mental wealth",
-    "sub": "Support for Care & Cleaning Professionals" if lang == "EN" else "Wsparcie dla Specjalistów Opieki i Sprzątania",
-    "tab1": "🧮 Calculator" if lang == "EN" else "🧮 Kalkulator",
-    "tab2": "📊 History" if lang == "EN" else "📊 Historia",
-    "tab3": "💡 Expert Tips" if lang == "EN" else "💡 Ekspert radzi",
-    "tab4": "🧘 Calm" if lang == "EN" else "🧘 Spokój",
-    
-    "trip_details": "#### 🚗 Trip Details" if lang == "EN" else "#### 🚗 Szczegóły przejazdu",
-    "emp_status_lbl": "Employment Status" if lang == "EN" else "Status zatrudnienia",
-    "emp_paye": "Agency Worker (PAYE)" if lang == "EN" else "Pracownik Agencji (PAYE)",
-    "emp_se": "Self-Employed (Sole Trader)" if lang == "EN" else "Samozatrudniony (Self-Employed)",
-    "date_lbl": "Trip Date" if lang == "EN" else "Data przejazdu",
-    "miles_lbl": "Total Miles" if lang == "EN" else "Suma mil",
-    "agency_lbl": "Agency rate (p/mile)" if lang == "EN" else "Stawka agencji (pensy/mila)",
-    "btn_add": "Add to Calculation" if lang == "EN" else "Dodaj do obliczeń",
-    
-    "math_h": "#### 🔍 Calculation Breakdown" if lang == "EN" else "#### 🔍 Rozbicie matematyczne",
-    "hmrc_step": "HMRC Allowance (45p):" if lang == "EN" else "Limit HMRC (45p):",
-    "paid_step": "Agency Reimbursement:" if lang == "EN" else "Zwrot z agencji:",
-    "relief_step": "Final Tax Relief:" if lang == "EN" else "Końcowa ulga podatkowa:",
-    "se_step": "Allowable Business Expense:" if lang == "EN" else "Koszt firmowy obniżający podatek:",
-    "se_info": "💡 As Self-Employed, you can deduct the full 45p per mile as a business expense!" if lang == "EN" else "💡 Jako samozatrudniony odliczasz pełne 45p za milę jako koszt uzyskania przychodu!",
-    "toast_add": "Trip added to history!" if lang == "EN" else "Dodano przejazd do historii!",
-    
-    "metric_miles": "Total Miles" if lang == "EN" else "Suma Mil",
-    "metric_relief": "Total Relief / Expense" if lang == "EN" else "Suma Ulgi / Kosztów",
-    "chart_h": "### Analysis" if lang == "EN" else "### Analiza",
-    "btn_pdf": "📥 Download PDF Report" if lang == "EN" else "📥 Pobierz Raport PDF",
-    "btn_clear": "Clear History" if lang == "EN" else "Wyczyść historię",
-    "no_data": "No data in history." if lang == "EN" else "Brak danych w historii.",
-    
-    "tips_h": "### What can you deduct?" if lang == "EN" else "### Co możesz odliczyć od podatku?",
-    "tip1": "• **Cleaning supplies & equipment** (detergents, vacuums, mops)" if lang == "EN" else "• **Środki czystości i sprzęt** (detergenty, odkurzacze, mopy)",
-    "tip2": "• **Work uniforms & laundry** (cost of buying and washing protective clothing)" if lang == "EN" else "• **Odzież robocza i pranie** (koszt zakupu i prania ubrań ochronnych)",
-    "tip3": "• **PPE** (gloves, masks, overshoes)" if lang == "EN" else "• **Środki Ochrony Indywidualnej (PPE)** (rękawiczki, maski, ochraniacze na buty)",
-    "tip4": "• **Business Insurance** (Public Liability)" if lang == "EN" else "• **Ubezpieczenie zawodowe** (Public Liability Insurance)",
-    "tip5": "• **Phone & Internet bills** (business percentage only)" if lang == "EN" else "• **Rachunki za telefon i internet** (tylko część służbowa)",
-    "tip6": "• **Professional fees & DBS checks** (if required for work)" if lang == "EN" else "• **Opłaty członkowskie i certyfikaty DBS** (jeśli są wymagane do pracy)",
-    "tip7": "• **Marketing & Stationery** (flyers, business cards, diaries)" if lang == "EN" else "• **Koszty biurowe i marketing** (ulotki, wizytówki, kalendarze)",
-    "tip_warn": "⚠️ **Remember:** Keep all your business receipts and invoices for at least 5 years!" if lang == "EN" else "⚠️ **Pamiętaj:** Zachowaj wszystkie paragony i faktury firmowe przez co najmniej 5 lat!",
-    
-    "mindset_h": "Mindset" if lang == "EN" else "Nastawienie",
-    "btn_breathe": "Breathe with me" if lang == "EN" else "Oddychaj ze mną",
-    "inhale": "Inhale deeply..." if lang == "EN" else "Głęboki wdech...",
-    "exhale": "Exhale slowly..." if lang == "EN" else "Spokojny wydech..."
+# ── 4. CSS ────────────────────────────────────────────────────────────────────
+css = """
+<style>
+.stApp { background-color: #fcfaf5 !important; }
+h1, h2, h3, h4 { color: #002147 !important; font-family: Georgia, serif; }
+.stButton>button {
+    background-color: #002147 !important;
+    color: #D4AF37 !important;
+    border-radius: 8px !important;
+    border: 2px solid #D4AF37 !important;
+    font-weight: bold !important;
 }
+.stButton>button:hover {
+    background-color: #D4AF37 !important;
+    color: #002147 !important;
+}
+.stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+    background-color: #002147 !important;
+    color: #D4AF37 !important;
+}
+[data-testid="stMetricValue"] { color: #D4AF37 !important; }
+</style>
+"""
+st.markdown(css, unsafe_allow_html=True)
 
-# 5. Nagłówek i Logo
+# ── 5. NAGLOWEK I LOGO ────────────────────────────────────────────────────────
 _, col_m, _ = st.columns([1, 2, 1])
 with col_m:
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        script_dir = os.getcwd()
+
     logo_found = False
-    for name in ["logo.png", "logo", "logo.png.png"]:
-        path = os.path.join(script_dir, name)
-        if os.path.exists(path):
-            st.image(Image.open(path), use_container_width=True)
-            logo_found = True
-            break
+    if PIL_AVAILABLE:
+        for name in ["logo.png", "logo.PNG", "logo.jpg", "logo.png.png"]:
+            path = os.path.join(script_dir, name)
+            if os.path.exists(path):
+                st.image(Image.open(path), use_container_width=True)
+                logo_found = True
+                break
     if not logo_found:
-        st.info("A Counting Pro")
-    st.markdown(f"<h3 style='text-align: center; color: #D4AF37; font-style: italic;'>{t['motto']}</h3>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align: center; color: #002147;'>{t['sub']}</p>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center;color:#002147;'>A Counting Pro</h1>",
+                    unsafe_allow_html=True)
+
+    st.markdown("<h3 style='text-align:center;color:#D4AF37;font-style:italic;'>Financial health is mental wealth</h3>",
+                unsafe_allow_html=True)
+    sub = "Support for Care, Cleaning & Warehouse Professionals" if EN else "Wsparcie dla Care, Cleaning i Magazynow"
+    st.markdown(f"<p style='text-align:center;color:#002147;'><b>{sub}</b></p>", unsafe_allow_html=True)
 
 st.write("---")
 
-# 6. ZAKŁADKI
-tab1, tab2, tab3, tab4 = st.tabs([t["tab1"], t["tab2"], t["tab3"], t["tab4"]])
+# ── 6. ZAKLADKI ──────────────────────────────────────────────────────────────
+tab1, tab2 = st.tabs([
+    "🧮 Calculator" if EN else "🧮 Kalkulator",
+    "📊 Report & PDF" if EN else "📊 Raport i PDF",
+])
 
+# ═══════════ TAB 1 — KALKULATOR ══════════════════════════════════════════════
 with tab1:
-    col_in, col_math = st.columns([1, 1.2])
-    
+    col_in, col_math = st.columns([1, 1])
+
     with col_in:
-        st.write(t["trip_details"])
-        
-        # --- WYBÓR STATUSU ZATRUDNIENIA ---
-        emp_status = st.radio(t["emp_status_lbl"], [t["emp_paye"], t["emp_se"]])
+        emp_label = "Employment Status" if EN else "Status zatrudnienia"
+        emp_paye  = "Agency Worker (PAYE)" if EN else "Pracownik Agencji (PAYE)"
+        emp_se    = "Self-Employed (Sole Trader)" if EN else "Samozatrudniony (Self-Employed)"
+        emp_status = st.radio(emp_label, [emp_paye, emp_se])
         st.write("---")
-        
-        d = st.date_input(t["date_lbl"], date.today())
-        m = st.number_input(t["miles_lbl"], min_value=0.0, value=100.0, step=1.0)
-        
-        if emp_status == t["emp_paye"]:
-            a = st.number_input(t["agency_lbl"], min_value=0.0, value=25.0, step=1.0)
-            hmrc_total = m * 0.45
+
+        d = st.date_input("Trip Date" if EN else "Data przejazdu", date.today())
+        m = st.number_input("Total Miles" if EN else "Suma mil", min_value=0.0, value=15.0, step=1.0)
+
+        is_paye = "PAYE" in emp_status
+        if is_paye:
+            a = st.number_input(
+                "Agency rate (p/mile)" if EN else "Stawka pracodawcy (p/mile)",
+                min_value=0.0, max_value=100.0, value=25.0, step=0.5)
+            if a > 45:
+                st.warning(
+                    "⚠️ Agency rate above 45p — employer reimburses above HMRC limit. Relief = £0." if EN
+                    else "⚠️ Stawka powyzej 45p — pracodawca zwraca powyzej limitu HMRC. Ulga = £0.")
+            hmrc_total   = m * 0.45
             agency_total = m * (a / 100)
             relief = max(0.0, hmrc_total - agency_total)
         else:
-            a = 0.0 # Brak stawki agencji przy samozatrudnieniu
-            st.info(t["se_info"])
-            hmrc_total = m * 0.45
+            a = 0.0
+            st.info(
+                "💡 As Self-Employed you deduct the full 45p per mile as a business expense." if EN
+                else "💡 Jako samozatrudniony odliczasz pelne 45p za mile jako koszt firmowy.")
+            hmrc_total   = m * 0.45
             agency_total = 0.0
-            relief = hmrc_total # Całość wrzucamy w koszty
+            relief = hmrc_total
 
     with col_math:
-        st.write(t["math_h"])
-        if emp_status == t["emp_paye"]:
-            st.latex(r"Relief = (Miles \times 0.45) - (Miles \times \frac{Agency\_Rate}{100})")
-            st.write(f"**1. {t['hmrc_step']}** £{hmrc_total:.2f}")
-            st.write(f"**2. {t['paid_step']}** £{agency_total:.2f}")
-            st.success(f"**3. {t['relief_step']}** £{relief:.2f}")
-        else:
-            st.latex(r"Expense = Miles \times 0.45")
-            st.write(f"**1. {t['hmrc_step']}** £{hmrc_total:.2f}")
-            st.success(f"**2. {t['se_step']}** £{relief:.2f}")
+        st.write("#### 🔍 Calculation" if EN else "#### 🔍 Wyliczenia")
+        st.write(f"**{'HMRC Allowance (45p)' if EN else 'Limit HMRC (45p)'}:** £{hmrc_total:.2f}")
+        if is_paye:
+            st.write(f"**{'Agency Reimbursement' if EN else 'Zwrot z agencji'}:** £{agency_total:.2f}")
+        st.success(f"**{'Tax Relief / Expense' if EN else 'Ulga / Koszt firmowy'}:** £{relief:.2f}")
+        st.caption(
+            "ℹ️ Estimate only. HMRC makes the final decision on all tax relief claims." if EN
+            else "ℹ️ Szacunek orientacyjny. Ostateczna decyzja nalezy do HMRC.")
 
-    if st.button(t["btn_add"], use_container_width=True):
-        new_row = pd.DataFrame({'Date': [d], 'Miles': [m], 'Agency': [a], 'Relief': [relief]})
+    btn_add = "➕ Add to Report" if EN else "➕ Dodaj do Raportu"
+    if st.button(btn_add, use_container_width=True):
+        new_row = pd.DataFrame({"Date": [d], "Miles": [m], "Agency": [a], "Relief": [relief]})
         st.session_state.history = pd.concat([st.session_state.history, new_row], ignore_index=True)
-        st.toast(t["toast_add"])
+        st.toast("✅ Added to report!" if EN else "✅ Dodano do raportu!")
 
+# ═══════════ TAB 2 — RAPORT I PDF ════════════════════════════════════════════
 with tab2:
     if not st.session_state.history.empty:
-        total_r = st.session_state.history['Relief'].sum()
-        
-        m1, m2 = st.columns(2)
-        m1.metric(t["metric_miles"], f"{st.session_state.history['Miles'].sum():.1f}")
-        m2.metric(t["metric_relief"], f"£{total_r:.2f}")
-        
+        total_m_relief = st.session_state.history["Relief"].sum()
+
+        st.write("### 👕 Uniform & Laundry" if EN else "### 👕 Uniform i Pranie")
+        chk_lbl = ("Include annual flat rate for washing uniform at home" if EN
+                   else "Dolicz roczny ryczalt za pranie firmowego uniformu w domu")
+        add_uniform = st.checkbox(chk_lbl)
+
+        if add_uniform:
+            sector_options = {
+                "Care / Cleaning (£60)":          60.0,
+                "NHS Nurse / Midwife (£185)":     185.0,
+                "Retail / Warehouse (£60)":       60.0,
+                "Police Officer (£140)":          140.0,
+                "Other / Inne (enter manually)":  None,
+            }
+            selected = st.selectbox(
+                "Select your sector" if EN else "Wybierz swoja branze",
+                list(sector_options.keys()))
+            if sector_options[selected] is None:
+                uniform_amount = st.number_input(
+                    "Uniform allowance (£)" if EN else "Kwota ryczaltu (£)",
+                    min_value=0.0, value=60.0, step=1.0)
+            else:
+                uniform_amount = sector_options[selected]
+                st.info(f"{'Flat rate for this sector' if EN else 'Ryczalt dla tej branzy'}: **£{uniform_amount:.0f}**")
+            st.caption(
+                "ℹ️ Only if employer does NOT reimburse laundry. No receipts needed for flat rate." if EN
+                else "ℹ️ Tylko jesli pracodawca NIE zwraca kosztow prania. Przy ryczalcie nie trzeba paragonow.")
+        else:
+            uniform_amount = 0.0
+
+        final_total = total_m_relief + uniform_amount
         st.write("---")
-        st.write(t["chart_h"])
-        st.bar_chart(st.session_state.history, x="Date", y="Relief")
+
+        m1, m2 = st.columns(2)
+        m1.metric("Total Miles" if EN else "Suma Mil",
+                  f"{st.session_state.history['Miles'].sum():.1f}")
+        m2.metric("Total Relief / Expense" if EN else "Calkowita Ulga / Koszt",
+                  f"£{final_total:.2f}")
+
         st.dataframe(st.session_state.history, use_container_width=True)
-        
-        pdf_bytes = create_pdf(st.session_state.history, total_r, lang)
-        st.download_button(t["btn_pdf"], pdf_bytes, f"ACountingPro_{date.today()}.pdf")
-        
-        if st.button(t["btn_clear"]):
-            st.session_state.history = pd.DataFrame(columns=['Date', 'Miles', 'Agency', 'Relief'])
+
+        pdf_bytes = create_pdf(st.session_state.history, total_m_relief, uniform_amount, lang)
+        st.download_button(
+            label="📥 Download PDF Report for HMRC" if EN else "📥 Pobierz Raport PDF dla Urzedu",
+            data=pdf_bytes,
+            file_name=f"HMRC_Report_{date.today()}.pdf",
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True,
+        )
+
+        if st.button("🗑 Clear All Data" if EN else "🗑 Wyczysc wszystkie dane"):
+            st.session_state.history = pd.DataFrame(columns=["Date", "Miles", "Agency", "Relief"])
             st.rerun()
     else:
-        st.info(t["no_data"])
+        st.info("No data yet. Add your trips in the Calculator tab!" if EN
+                else "Brak danych. Dodaj przejazdy w zakladce Kalkulator!")
 
-with tab3:
-    st.write(t["tips_h"])
-    st.write(t["tip1"])
-    st.write(t["tip2"])
-    st.write(t["tip3"])
-    st.write(t["tip4"])
-    st.write(t["tip5"])
-    st.write(t["tip6"])
-    st.write(t["tip7"])
-    st.warning(t["tip_warn"])
-
-with tab4:
-    st.subheader(t["mindset_h"])
-    if st.button(t["btn_breathe"]):
-        ph = st.empty()
-        for i in range(5):
-            ph.info(f"🧘 {t['inhale']} {i+1}/5")
-            time.sleep(3)
-            ph.success(f"✨ {t['exhale']} {i+1}/5")
-            time.sleep(3)
-        st.balloons()
-
+# ── 7. BANER FLASH SALE ───────────────────────────────────────────────────────
 st.markdown("---")
-
-# 🔥🔥🔥 SUBTELNY, EKSPERCKI BANER KIERUJĄCY DO LINKTREE 🔥🔥🔥
 linktree_url = "https://linktr.ee/ACountingPro"
 
-if lang == "EN":
-    st.info(f"""
-    ### 💡 Need help claiming your tax relief or filing Self-Assessment?
-    We know dealing with HMRC can be stressful, especially with the April 5th deadline approaching. Whether you are looking for a simple step-by-step guide to claim it yourself, need a quick consultation, or want us to handle everything for you – we've got you covered.
-    
-    👉 **[Click here to visit our profile and see how we can help]({linktree_url})**
-    """)
+if EN:
+    st.error(
+        "### 🚨 WEEKEND FLASH SALE (-50%)! Only 8 days left until Tax Year End!\n"
+        "Got your report? Don't leave money at HMRC and don't pay accountants £100 for a simple form!\n\n"
+        "Until **Sunday midnight only**, get our visual E-book for just **£9.99** (was £39.00).\n"
+        "It shows you exactly where to click on Gov.uk to submit safely. On Monday the price goes back up!\n\n"
+        f"[👉 GRAB THE E-BOOK OR BOOK OUR VIP SERVICE]({linktree_url})"
+    )
 else:
-    st.info(f"""
-    ### 💡 Potrzebujesz pomocy ze zwrotem podatku lub rozliczeniem Self-Assessment?
-    Wiemy, że sprawy z urzędem bywają stresujące. Niezależnie od tego, czy szukasz prostej instrukcji "krok po kroku", aby odzyskać pieniądze samodzielnie, potrzebujesz szybkiej porady, czy szukasz pełnej obsługi – jesteśmy tu, by pomóc.
-    
-    👉 **[Kliknij tutaj, aby sprawdzić jak możemy Ci pomóc]({linktree_url})**
-    """)
+    st.error(
+        "### 🚨 WEEKENDOWA WYPRZEDAZ (-50%)! Zostalo tylko 8 dni do konca roku podatkowego!\n"
+        "Masz raport? Nie zostawiaj pieniedzy w urzedzie i nie plac posrednikom £100!\n\n"
+        "Tylko do **niedzieli o polnocy**, moj wizualny e-book jest za **£9.99** (zamiast £39.00).\n"
+        "Pokazuje na zdjeciach z Gov.uk, jak bezpiecznie wyslac wniosek. W poniedzialek cena wraca!\n\n"
+        f"[👉 KLIKNIJ — E-BOOK LUB USLUGA VIP]({linktree_url})"
+    )
 
-st.markdown(f"<p style='text-align: center; color: grey;'>© {date.today().year} A Counting Pro | Financial health is mental wealth</p>", unsafe_allow_html=True)
+st.markdown(
+    f"<p style='text-align:center;color:grey;'>© {date.today().year} A Counting Pro | Financial health is mental wealth</p>",
+    unsafe_allow_html=True)
