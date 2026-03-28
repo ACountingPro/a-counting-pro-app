@@ -280,7 +280,7 @@ with tab2:
         if add_uniform:
             sector_options = {
                 "Care / Cleaning (60 GBP)": 60.0,
-                "NHS Nurse / Midwife (185 GBP)": 185.0,
+                "NHS Nurse / Midwife (185 GBP)": 125.0,
                 "Retail / Warehouse (60 GBP)": 60.0,
                 "Police Officer (140 GBP)": 140.0,
                 "Other / Inne (enter manually)": None,
@@ -362,7 +362,7 @@ if EN:
     st.error(
         "### WEEKEND FLASH SALE (-50%)! Only 8 days left until Tax Year End!\n"
         "Got your report? Don't leave money at HMRC!\n\n"
-        "Until **Sunday midnight only**, get our E-book for just **GBP 17.99** (was GBP 39.00). "
+        "Until **Sunday midnight only**, get our E-book for just **GBP 12.99** (was GBP 29.00). "
         "It shows you exactly where to click on Gov.uk to submit safely.\n\n"
         f"[GRAB THE E-BOOK OR BOOK OUR VIP SERVICE]({linktree_url})"
     )
@@ -370,7 +370,7 @@ else:
     st.error(
         "### WEEKENDOWA WYPRZEDAZ (-50%)! Zostalo tylko 8 dni do konca roku podatkowego!\n"
         "Masz raport? Nie zostawiaj pieniedzy w HMRC!\n\n"
-        "Tylko do **niedzieli do polnocy**, moj e-book za **GBP 17.99** (zamiast GBP 39.00). "
+        "Tylko do **niedzieli do polnocy**, moj e-book za **GBP 12.99** (zamiast GBP 29.00). "
         "Pokazuje na zdjeciach z Gov.uk jak bezpiecznie wyslac wniosek.\n\n"
         f"[KLIKNIJ - E-BOOK LUB USLUGA VIP]({linktree_url})"
     )
