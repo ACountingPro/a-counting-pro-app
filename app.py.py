@@ -64,12 +64,22 @@ def create_pdf(df, total_miles_relief, uniform_amount, lang):
         for w, v in zip(COL, vals):
             pdf.cell(w, 9, text=v[:14], border=1)
         pdf.ln()
-    pdf.ln(8)
+   pdf.ln(8)
     pdf.set_font("Helvetica", size=10)
+    
+    # --- NOWE: GOTOWE SUMY DLA GOV.UK ---
+    total_miles_pdf = df["Miles"].astype(float).sum()
+    total_agency_paid = (df["Miles"].astype(float) * (df["Agency"].astype(float) / 100)).sum()
+    
     if lang == "EN":
+        pdf.cell(0, 6, text=f"Total business miles (enter on Gov.uk): {total_miles_pdf:.1f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 6, text=f"Mileage allowance paid by employer (enter on Gov.uk): GBP {total_agency_paid:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         miles_line = f"Total relief from miles: GBP {total_miles_relief:.2f}"
     else:
+        pdf.cell(0, 6, text=f"Calkowita suma mil (wpisz to na Gov.uk): {total_miles_pdf:.1f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 6, text=f"Kwota zwrocona przez pracodawce (wpisz to na Gov.uk): GBP {total_agency_paid:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         miles_line = f"Suma ulgi za mile: GBP {total_miles_relief:.2f}"
+        
     pdf.cell(0, 6, text=miles_line, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     final_total = total_miles_relief
     if uniform_amount > 0:
