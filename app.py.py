@@ -360,17 +360,17 @@ st.markdown("---")
 linktree_url = "https://linktr.ee/ACountingPro"
 if EN:
     st.error(
-        "### WEEKEND FLASH SALE (-50%)! Only 8 days left until Tax Year End!\n"
+        "### WEEKEND FLASH SALE (-50%)! Only 7 days left until Tax Year End!\n"
         "Got your report? Don't leave money at HMRC!\n\n"
-        "Until **Sunday midnight only**, get our E-book for just **GBP 12.99** (was GBP 29.00). "
+        "Until **Sunday midnight only**, get our E-book for just **GBP 14.99** (was GBP 29.00). "
         "It shows you exactly where to click on Gov.uk to submit safely.\n\n"
         f"[GRAB THE E-BOOK OR BOOK OUR VIP SERVICE]({linktree_url})"
     )
 else:
     st.error(
-        "### WEEKENDOWA WYPRZEDAZ (-50%)! Zostalo tylko 8 dni do konca roku podatkowego!\n"
+        "### WEEKENDOWA WYPRZEDAZ (-50%)! Zostalo tylko 7 dni do konca roku podatkowego!\n"
         "Masz raport? Nie zostawiaj pieniedzy w HMRC!\n\n"
-        "Tylko do **niedzieli do polnocy**, moj e-book za **GBP 12.99** (zamiast GBP 29.00). "
+        "Tylko do **niedzieli do polnocy**, moj e-book za **GBP 14.99** (zamiast GBP 29.00). "
         "Pokazuje na zdjeciach z Gov.uk jak bezpiecznie wyslac wniosek.\n\n"
         f"[KLIKNIJ - E-BOOK LUB USLUGA VIP]({linktree_url})"
     )
