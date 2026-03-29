@@ -14,14 +14,12 @@ except ImportError:
 
 st.set_page_config(page_title="A Counting Pro", page_icon="💰", layout="wide")
 
-
 def get_tax_year():
     today = date.today()
     if today.month > 4 or (today.month == 4 and today.day >= 6):
         return f"{today.year}/{today.year + 1}"
     else:
         return f"{today.year - 1}/{today.year}"
-
 
 def create_pdf(df, total_miles_relief, uniform_amount, lang):
     pdf = FPDF()
@@ -64,7 +62,7 @@ def create_pdf(df, total_miles_relief, uniform_amount, lang):
         for w, v in zip(COL, vals):
             pdf.cell(w, 9, text=v[:14], border=1)
         pdf.ln()
-   pdf.ln(8)
+    pdf.ln(8)
     pdf.set_font("Helvetica", size=10)
     
     # --- NOWE: GOTOWE SUMY DLA GOV.UK ---
@@ -74,10 +72,14 @@ def create_pdf(df, total_miles_relief, uniform_amount, lang):
     if lang == "EN":
         pdf.cell(0, 6, text=f"Total business miles (enter on Gov.uk): {total_miles_pdf:.1f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.cell(0, 6, text=f"Mileage allowance paid by employer (enter on Gov.uk): GBP {total_agency_paid:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(2)
+        pdf.set_font("Helvetica", size=10)
         miles_line = f"Total relief from miles: GBP {total_miles_relief:.2f}"
     else:
         pdf.cell(0, 6, text=f"Calkowita suma mil (wpisz to na Gov.uk): {total_miles_pdf:.1f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.cell(0, 6, text=f"Kwota zwrocona przez pracodawce (wpisz to na Gov.uk): GBP {total_agency_paid:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(2)
+        pdf.set_font("Helvetica", size=10)
         miles_line = f"Suma ulgi za mile: GBP {total_miles_relief:.2f}"
         
     pdf.cell(0, 6, text=miles_line, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
@@ -110,7 +112,6 @@ def create_pdf(df, total_miles_relief, uniform_amount, lang):
     pdf.cell(0, 8, text="Financial health is mental wealth | linktr.ee/ACountingPro",
              new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
     return bytes(pdf.output())
-
 
 if "history" not in st.session_state:
     st.session_state.history = pd.DataFrame(
@@ -372,17 +373,17 @@ if EN:
     st.error(
         "### WEEKEND FLASH SALE (-50%)! Only 7 days left until Tax Year End!\n"
         "Got your report? Don't leave money at HMRC!\n\n"
-        "Until **Sunday midnight only**, get our E-book for just **GBP 14.99** (was GBP 29.00). "
-        "It shows you exactly where to click on Gov.uk to submit safely.\n\n"
+        "Until **Sunday midnight only**, get our step-by-step Gov.uk E-book for just **GBP 14.99** (was GBP 29.00). "
+        "Learn how to safely claim your tax back - for less than the price of a dinner out!\n\n"
         f"[GRAB THE E-BOOK OR BOOK OUR VIP SERVICE]({linktree_url})"
     )
 else:
     st.error(
         "### WEEKENDOWA WYPRZEDAZ (-50%)! Zostalo tylko 7 dni do konca roku podatkowego!\n"
-        "Masz raport? Nie zostawiaj pieniedzy w HMRC!\n\n"
-        "Tylko do **niedzieli do polnocy**, moj e-book za **GBP 14.99** (zamiast GBP 29.00). "
-        "Pokazuje na zdjeciach z Gov.uk jak bezpiecznie wyslac wniosek.\n\n"
-        f"[KLIKNIJ - E-BOOK LUB USLUGA VIP]({linktree_url})"
+        "Masz raport? Nie zostawiaj pieniedzy w urzedzie i nie plac posrednikom 100 funtow!\n\n"
+        "Tylko do **niedzieli do polnocy**, moja wizualna instrukcja Gov.uk za **GBP 14.99** (zamiast GBP 29.00). "
+        "Dowiedz sie, jak bezpiecznie odzyskac nadplacony podatek - za mniej niz koszt niedzielnego obiadu!\n\n"
+        f"[KLIKNIJ - POBIERZ E-BOOK LUB ZLEC TO NAM (VIP)]({linktree_url})"
     )
 
 st.markdown(
