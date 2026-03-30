@@ -109,7 +109,7 @@ def create_pdf(df, total_expense, uniform_amount, lang):
     pdf.ln(2)
     pdf.set_font("Helvetica", "B", 13)
     
-    # WYLICZENIE 20% GOTÓWKI
+    # WYLICZENIE 20% GOTÓWKI W RAPORCIE
     cash_refund = final_expense * 0.20
     
     if lang == "EN":
@@ -153,7 +153,6 @@ h1, h2, h3, h4 { color: #002147 !important; font-family: Georgia, serif; }
 .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] { background-color: #002147 !important; color: #D4AF37 !important; }
 [data-testid="stMetricValue"] { color: #D4AF37 !important; }
 .brand-card { background: #fffdf8; border: 1px solid #e6dcc6; border-radius: 14px; padding: 18px; box-shadow: 0 4px 14px rgba(0, 33, 71, 0.06); }
-.cash-box { background-color: #e8f5e9; border-left: 5px solid #28a745; padding: 15px; border-radius: 5px; margin-top: 15px; }
 </style>
 """
 st.markdown(css, unsafe_allow_html=True)
@@ -242,19 +241,29 @@ with tab1:
             st.write(f"**{'Agency Reimbursement' if EN else 'Zwrot z agencji'}:** £{agency_total:.2f}")
         
         st.write("---")
-        st.write(f"**{'Total Allowable Expense' if EN else 'Koszt do odliczenia'}:** £{expense:.2f}")
         
+        # TWOJA GENIALNA POPRAWKA (BEZPIECZEŃSTWO KLIENTA):
+        st.success(f"**{'Tax Relief / Expense' if EN else 'Ulga / Koszt firmowy'}:** £{expense:.2f}")
+        st.caption(
+            "Estimate only. HMRC makes the final decision on all tax relief claims."
+            if EN else
+            "Szacunek orientacyjny. Ostateczna decyzja należy do HMRC."
+        )
+
         if is_paye:
-            cash_estimate = expense * 0.20
-            st.markdown(f"""
-            <div class="cash-box">
-                <h4 style="color:#155724; margin:0;">{'💸 Estimated CASH (20%)' if EN else '💸 Szacowana GOTÓWKA (20%)'}: £{cash_estimate:.2f}</h4>
-                <p style="color:#155724; font-size:0.85em; margin:0;">{'Money back to your account' if EN else 'Tyle wroci na Twoje konto'}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            st.caption("ℹ️ The 20% cash back estimate assumes you are a basic rate taxpayer." if EN else "ℹ️ Szacunek 20% gotówki dotyczy płatników w podstawowym progu podatkowym.")
-        else:
-            st.caption("ℹ️ HMRC makes the final decision." if EN else "ℹ️ Ostateczna decyzja należy do HMRC.")
+            zwrot_gotowka = expense * 0.20
+            if EN:
+                st.info(f"💷 Estimated cash refund from HMRC (20%): **£{zwrot_gotowka:.2f}**")
+                st.caption(
+                    "This is the estimated amount that will hit your bank account. "
+                    "**Enter the 'Tax Relief / Expense' amount above in your P87 form, NOT this cash figure.**"
+                )
+            else:
+                st.info(f"💷 Szacowany zwrot gotówki od HMRC (20%): **£{zwrot_gotowka:.2f}**")
+                st.caption(
+                    "To orientacyjna kwota, która trafi na Twoje konto. "
+                    "**Wpisz w P87 kwotę 'Ulga / Koszt firmowy' powyżej, nie tę liczbę.**"
+                )
 
         st.info(f"{'Current Tax Year' if EN else 'Aktualny rok podatkowy'}: **{get_tax_year()}**")
 
@@ -306,7 +315,6 @@ with tab2:
         c1.metric("Total Miles" if EN else "Suma Mil", f"{st.session_state.history['Miles'].sum():.1f}")
         c2.metric("Total Expense" if EN else "Suma Kosztów", f"£{final_total:.2f}")
         
-        # Osobna metryka na zielono z realną gotówką!
         st.markdown(
             f"""
             <div data-testid="stMetricValue" style="text-align:center;">
@@ -383,19 +391,19 @@ linktree_url = "https://linktr.ee/ACountingPro"
 
 if EN:
     st.error(
-        "### 🚨 TAX YEAR END DEADLINE!\n"
+        "### 🚨 TAX YEAR END DEADLINE: Only 6 days left!\n"
         "On April 5th, unclaimed tax relief from 2021/2022 will be **lost forever**.\n\n"
-        "Got your report? Don't leave cash at HMRC\n\n"
+        "Got your report? Don't leave cash at HMRC!\n\n"
         "Get our step-by-step Gov.uk visual E-book for **£15.99**. "
         "It shows you exactly where to click to submit safely - for less than the price of a dinner out!\n\n"
         f"[👉 GRAB THE E-BOOK OR BOOK OUR VIP SERVICE]({linktree_url})"
     )
 else:
     st.error(
-        "### 🚨 KONIEC ROKU PODATKOWEGO!\n"
+        "### 🚨 KONIEC ROKU PODATKOWEGO: Zostało tylko 6 dni!\n"
         "5 kwietnia przepadnie bezpowrotnie Twoja gotówka z najstarszego roku podatkowego (2021/22).\n\n"
-        "Masz już raport? Nie zostawiaj pieniędzy w HMRC\n\n"
-        "Instrukcja P87 Gov.uk jest dostępna za **£15.99**. "
+        "Masz już raport? Nie zostawiaj pieniędzy HMRC!\n\n"
+        "Moja wizualna instrukcja Gov.uk jest dostępna za **£15.99**. "
         "Dowiedz się, jak wpisać kwoty z raportu by odzyskać swój podatek!\n\n"
         f"[👉 KLIKNIJ — POBIERZ E-BOOK LUB ZLEĆ TO MI (VIP)]({linktree_url})"
     )
