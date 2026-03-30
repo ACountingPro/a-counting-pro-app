@@ -6,6 +6,12 @@ from fpdf.enums import XPos, YPos
 from datetime import date
 import io
 
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
 st.set_page_config(page_title="A Counting Pro", page_icon="💰", layout="wide")
 
 def get_tax_year():
@@ -64,73 +70,75 @@ def create_pdf(df, total_expense, uniform_amount, lang):
 
     pdf.ln(8)
     pdf.set_font("Helvetica", size=10)
-    
-    # --- GOTOWE SUMY DLA GOV.UK ---
+
     total_miles_pdf = df["Miles"].astype(float).sum()
     total_agency_paid = (df["Miles"].astype(float) * (df["Agency"].astype(float) / 100)).sum()
-    
+
     if lang == "EN":
         pdf.cell(0, 6, text=f"Total business miles (enter on Gov.uk): {total_miles_pdf:.1f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.cell(0, 6, text=f"Mileage allowance paid by employer (enter on Gov.uk): GBP {total_agency_paid:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(2)
-        pdf.set_font("Helvetica", size=10)
         miles_line = f"Total allowable expense from miles: GBP {total_expense:.2f}"
     else:
         pdf.cell(0, 6, text=f"Calkowita suma mil (wpisz to na Gov.uk): {total_miles_pdf:.1f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.cell(0, 6, text=f"Kwota zwrocona przez pracodawce (wpisz to na Gov.uk): GBP {total_agency_paid:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(2)
-        pdf.set_font("Helvetica", size=10)
         miles_line = f"Suma kosztow za mile: GBP {total_expense:.2f}"
-        
+
+    pdf.set_font("Helvetica", size=10)
     pdf.cell(0, 6, text=miles_line, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    
+
     final_expense = total_expense
     if uniform_amount > 0:
-        if lang == "EN":
-            uni_text = f"+ GBP {uniform_amount:.2f} (Uniform Laundry Flat Rate)"
-        else:
-            uni_text = f"+ GBP {uniform_amount:.2f} (Zryczaltowany koszt prania uniformu)"
+        uni_text = (
+            f"+ GBP {uniform_amount:.2f} (Uniform Laundry Flat Rate)"
+            if lang == "EN"
+            else f"+ GBP {uniform_amount:.2f} (Zryczaltowany koszt prania uniformu)"
+        )
         pdf.cell(0, 6, text=uni_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         final_expense += uniform_amount
-        
+
     pdf.ln(4)
     pdf.set_font("Helvetica", "B", 11)
     if lang == "EN":
-        pdf.cell(0, 8, text=f"TOTAL ALLOWABLE EXPENSE (To declare): GBP {final_expense:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 8, text=f"TOTAL ALLOWABLE EXPENSE (Enter in P87 form): GBP {final_expense:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     else:
-        pdf.cell(0, 8, text=f"LACZNY KOSZT DO ODLICZENIA (Wpisz w HMRC): GBP {final_expense:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        
-    pdf.ln(2)
-    pdf.set_font("Helvetica", "B", 13)
-    
-    # WYLICZENIE 20% GOTÓWKI
-    cash_refund = final_expense * 0.20
-    
-    if lang == "EN":
-        pdf.cell(0, 10, text=f"ESTIMATED CASH REFUND (20% of Expense): GBP {cash_refund:.2f}*", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    else:
-        pdf.cell(0, 10, text=f"SZACOWANA GOTOWKA NA KONTO (20% z kosztow): GBP {cash_refund:.2f}*", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 8, text=f"LACZNY KOSZT DO WPISANIA W P87 (Gov.uk): GBP {final_expense:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-    pdf.ln(10)
+    pdf.ln(3)
+    pdf.set_font("Helvetica", "B", 13)
+    cash_refund = final_expense * 0.20
+    if lang == "EN":
+        pdf.cell(0, 10, text=f"ESTIMATED CASH REFUND TO YOUR ACCOUNT (20%): GBP {cash_refund:.2f} *", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    else:
+        pdf.cell(0, 10, text=f"SZACOWANA GOTOWKA NA TWOJE KONTO (20%): GBP {cash_refund:.2f} *", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    pdf.ln(8)
     pdf.set_font("Helvetica", "I", 8)
     if lang == "EN":
-        disclaimer = ("*This report is for estimation purposes only. The 20% cash refund assumes you are a basic rate taxpayer "
-                      "who earned above the Personal Allowance. HMRC makes the final decision.")
+        disclaimer = (
+            "* IMPORTANT: 'Total Allowable Expense' is what you enter into the P87 form on Gov.uk. "
+            "HMRC then pays you 20% of that amount as cash (basic rate taxpayer). "
+            "Assumes earnings above Personal Allowance (GBP 12,570) and Income Tax paid. "
+            "Final decision rests with HMRC."
+        )
     else:
-        disclaimer = ("*Raport ma charakter szacunkowy. Szacowana gotowka (20%) zaklada, ze przekroczyles kwote wolna "
-                      "i placisz podstawowa stawke podatku. Ostateczna decyzja nalezy do HMRC.")
+        disclaimer = (
+            "* WAZNE: 'Laczny Koszt do Wpisania w P87' to wartosc, ktora wpisujesz w formularzu na Gov.uk. "
+            "HMRC nastepnie wyplaci Ci 20% tej kwoty jako gotowke na konto (stawka podstawowa). "
+            "Zaklada zarobki powyzej kwoty wolnej (GBP 12,570) i zaplacony podatek. "
+            "Ostateczna decyzja nalezy do HMRC."
+        )
     pdf.multi_cell(0, 5, text=disclaimer)
 
     pdf.ln(4)
     pdf.set_font("Helvetica", "I", 9)
-    pdf.cell(
-        0, 8, text="Financial health is mental wealth | linktr.ee/ACountingPro",
-        new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C"
-    )
+    pdf.cell(0, 8, text="Financial health is mental wealth | linktr.ee/ACountingPro",
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
 
     return bytes(pdf.output())
 
-# --- Zabezpieczenie przed starymi sesjami w przeglądarkach klientów ---
+# Zabezpieczenie przed błędami starszych sesji w przeglądarce
 if "history" not in st.session_state or "Expense" not in st.session_state.history.columns:
     st.session_state.history = pd.DataFrame(
         columns=["Date", "From", "To", "Purpose", "Miles", "Agency", "Expense"]
@@ -149,43 +157,49 @@ h1, h2, h3, h4 { color: #002147 !important; font-family: Georgia, serif; }
 [data-testid="stMetricValue"] { color: #D4AF37 !important; }
 .brand-card { background: #fffdf8; border: 1px solid #e6dcc6; border-radius: 14px; padding: 18px; box-shadow: 0 4px 14px rgba(0, 33, 71, 0.06); }
 .cash-box { background-color: #e8f5e9; border-left: 5px solid #28a745; padding: 15px; border-radius: 5px; margin-top: 15px; }
+.expense-box { background-color: #e3f2fd; border-left: 5px solid #1565c0; padding: 12px; border-radius: 5px; margin-top: 10px; }
 </style>
 """
 st.markdown(css, unsafe_allow_html=True)
 
+# ==========================================
+# 🕵️‍♀️ SKANER LOGO - WYSWIETLANIE NA GORZE
+# ==========================================
 _, col_m, _ = st.columns([1, 2, 1])
 with col_m:
-    try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-    except NameError:
-        script_dir = os.getcwd()
-
-    # --- PANCERNY SKANER LOGO (Nie wymaga biblioteki zewnętrznej!) ---
     logo_found = False
-    valid_logo_names = [
-        "logo.png", "logo.jpg", "logo.jpeg",
-        "acountingpro.png", "acountingpro.jpg", "acountingpro.jpeg",
-        "a counting pro.png", "a counting pro.jpg", "a counting pro.jpeg"
-    ]
+    wszystkie_pliki = []
     
     try:
-        for file in os.listdir(script_dir):
-            if file.lower() in valid_logo_names:
-                path = os.path.join(script_dir, file)
-                st.image(path, use_container_width=True)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        wszystkie_pliki = os.listdir(script_dir)
+        for plik in wszystkie_pliki:
+            plik_lower = plik.lower()
+            if ("logo" in plik_lower or "acounting" in plik_lower) and plik_lower.endswith((".png", ".jpg", ".jpeg", ".webp")):
+                sciezka = os.path.join(script_dir, plik)
+                st.image(sciezka, use_container_width=True)
                 logo_found = True
                 break
-    except Exception:
-        pass
+    except Exception as e:
+        wszystkie_pliki = [f"Błąd odczytu: {e}"]
 
     if not logo_found:
-        st.markdown("<h1 style='text-align:center;color:#002147;'>A Counting Pro</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center;color:#002147;'>💰 A Counting Pro</h1>", unsafe_allow_html=True)
+        st.warning(
+            f"**🕵️‍♀️ TRYB DETEKTYWA:** Serwer (Streamlit) nie widzi żadnego pliku z Twoim logo! "
+            f"Oznacza to, że musisz wejść na GitHuba (tam gdzie wgrywasz app.py), kliknąć 'Add file' -> 'Upload files' i wgrać swoje zdjęcie z komputera.\n\n"
+            f"Obecnie serwer widzi u Ciebie w folderze **TYLKO** te pliki:\n`{wszystkie_pliki}`"
+        )
 
     st.markdown("<h3 style='text-align:center;color:#D4AF37;font-style:italic;'>Financial health is mental wealth</h3>", unsafe_allow_html=True)
     sub = "Support for Care, Cleaning & Warehouse Professionals" if EN else "Wsparcie dla Care, Cleaning i Magazynow"
     st.markdown(f"<p style='text-align:center;color:#002147;'><b>{sub}</b></p>", unsafe_allow_html=True)
 
 st.write("---")
+
+# ==========================================
+# KALKULATOR I ZAKŁADKI
+# ==========================================
 
 tab1, tab2, tab3 = st.tabs([
     "🧮 Calculator" if EN else "🧮 Kalkulator",
@@ -242,27 +256,43 @@ with tab1:
         
         st.write("---")
         
-        st.success(f"**{'Total Allowable Expense' if EN else 'Koszt do odliczenia (Wpisz to na Gov.uk)'}:** £{expense:.2f}")
-        st.caption(
-            "Estimate only. HMRC makes the final decision."
-            if EN else
-            "Szacunek orientacyjny. Ostateczna decyzja należy do HMRC."
-        )
+        if lang == "EN":
+            st.markdown(f"""
+            <div class="expense-box">
+                <b>Allowable Expense (enter in P87 on Gov.uk):</b> £{expense:.2f}<br>
+                <small>This is the number you type into the HMRC form</small>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="expense-box">
+                <b>Koszt do wpisania w P87 (Gov.uk):</b> £{expense:.2f}<br>
+                <small>Te liczbe wpisujesz w formularzu na stronie urzedu HMRC</small>
+            </div>
+            """, unsafe_allow_html=True)
 
         if is_paye:
             cash_estimate = expense * 0.20
-            if EN:
-                st.info(f"💷 Estimated cash refund from HMRC (20%): **£{cash_estimate:.2f}**")
-                st.caption(
-                    "This is the estimated amount that will hit your bank account. "
-                    "**Enter the 'Total Allowable Expense' amount above in your P87 form, NOT this cash figure.**"
-                )
+            if lang == "EN":
+                st.markdown(f"""
+                <div class="cash-box">
+                    <h4 style="color:#155724; margin:0;">💸 Estimated CASH to your account (20%): £{cash_estimate:.2f}</h4>
+                    <p style="color:#155724; font-size:0.85em; margin-top:6px; margin-bottom:0;">
+                    HMRC pays you 20% of the allowable expense. This is the real money in your bank.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.caption("Assumes basic rate (20%) taxpayer, earnings above £12,570. Final decision: HMRC.")
             else:
-                st.info(f"💷 Szacowany zwrot gotówki od HMRC (20%): **£{cash_estimate:.2f}**")
-                st.caption(
-                    "To orientacyjna kwota, która trafi na Twoje konto. "
-                    "**Wpisz w P87 kwotę 'Koszt do odliczenia' powyżej, nie tę liczbę.**"
-                )
+                st.markdown(f"""
+                <div class="cash-box">
+                    <h4 style="color:#155724; margin:0;">💸 Szacowana GOTOWKA na Twoje konto (20%): £{cash_estimate:.2f}</h4>
+                    <p style="color:#155724; font-size:0.85em; margin-top:6px; margin-bottom:0;">
+                    HMRC zwraca Ci 20% kosztu wpisanego w P87. To kwota, ktora faktycznie trafi na konto.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.caption("Dotyczy platnikow 20%, zarobki powyzej £12,570. Ostateczna decyzja: HMRC.")
 
         st.info(f"{'Current Tax Year' if EN else 'Aktualny rok podatkowy'}: **{get_tax_year()}**")
 
@@ -314,7 +344,6 @@ with tab2:
         c1.metric("Total Miles" if EN else "Suma Mil", f"{st.session_state.history['Miles'].sum():.1f}")
         c2.metric("Total Expense (P87)" if EN else "Koszt P87", f"£{final_total:.2f}")
         
-        # Osobna metryka na zielono z realną gotówką!
         st.markdown(
             f"""
             <div data-testid="stMetricValue" style="text-align:center;">
@@ -359,23 +388,44 @@ with tab2:
     else:
         st.info("No data yet. Add your trips in the Calculator tab!" if EN else "Brak danych. Dodaj przejazdy w zakladce Kalkulator!")
 
+# ==========================================
+# ZAKŁADKA 3 - W PEŁNI PRZETŁUMACZONA
+# ==========================================
 with tab3:
-    st.markdown("### 📘 A Counting Pro Brand System")
-    st.markdown(
-        """
+    if EN:
+        st.markdown("### 📘 A Counting Pro Brand System")
+        st.markdown(
+            """
+<div class="brand-card">
+<b>App + E-book + VIP Service</b><br><br>
+This app is not a standalone tool. It is the first step in the A Counting Pro claim system:
+<ul>
+<li><b>Step 1: App</b> — calculates your Allowable Expense and estimated Cash Refund (20%)</li>
+<li><b>Step 2: PDF Report</b> — generates a ready-to-use document for HMRC</li>
+<li><b>Step 3: P87 E-book</b> — visual step-by-step Gov.uk guide showing exactly where to click</li>
+<li><b>Step 4: VIP Service</b> — 1-to-1 support if you prefer a professional accountant to handle the claim for you</li>
+</ul>
+</div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown("### 📘 A Counting Pro Brand System")
+        st.markdown(
+            """
 <div class="brand-card">
 <b>Aplikacja + E-book + Usługa VIP</b><br><br>
 Ta aplikacja nie jest osobnym narzędziem. To pierwszy krok w systemie marki A Counting Pro:
 <ul>
-<li><b>Aplikacja</b> — szybka kalkulacja Twoich kosztów (Expense) i gotówki na konto (20%)</li>
-<li><b>Raport PDF</b> — gotowy dokument z poprawnymi kwotami dla urzędu</li>
-<li><b>E-book P87</b> — wizualna instrukcja jak bezpiecznie wysłać te dane do HMRC</li>
-<li><b>VIP Service</b> — pomoc 1:1 dla osób, które wolą, żeby księgowa zrobiła to za nich</li>
+<li><b>Etap 1: Aplikacja</b> — szybka kalkulacja Twoich kosztów (Expense) i gotówki na konto (20%)</li>
+<li><b>Etap 2: Raport PDF</b> — gotowy dokument z poprawnymi kwotami dla urzędu</li>
+<li><b>Etap 3: E-book P87</b> — wizualna instrukcja jak bezpiecznie wysłać te dane do HMRC</li>
+<li><b>Etap 4: VIP Service</b> — pomoc 1:1 dla osób, które wolą, żeby księgowa zrobiła to za nich</li>
 </ul>
 </div>
-        """,
-        unsafe_allow_html=True
-    )
+            """,
+            unsafe_allow_html=True
+        )
 
     st.write("")
     linktree_url = "https://linktr.ee/ACountingPro"
