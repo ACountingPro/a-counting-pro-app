@@ -371,18 +371,20 @@ st.markdown("---")
 linktree_url = "https://linktr.ee/ACountingPro"
 if EN:
     st.error(
-        "### WEEKEND FLASH SALE (-50%)! Only 7 days left until Tax Year End!\n"
-        "Got your report? Don't leave money at HMRC!\n\n"
-        "Until **Sunday midnight only**, get our step-by-step Gov.uk E-book for just **GBP 14.99** (was GBP 29.00). "
-        "Learn how to safely claim your tax back - for less than the price of a dinner out!\n\n"
+        "### 🚨 TAX YEAR END DEADLINE: Only 6 days left!\n"
+        "On April 5th, unclaimed tax relief from 2021/2022 will be **lost forever**.\n\n"
+        "Got your report? Don't leave money at HMRC\n\n"
+        "Get our step-by-step Gov.uk E-book for **GBP 15.99**. "
+        "It shows you exactly where to click to submit safely - for less than the price of a dinner out!\n\n"
         f"[GRAB THE E-BOOK OR BOOK OUR VIP SERVICE]({linktree_url})"
     )
 else:
     st.error(
-        "### WEEKENDOWA WYPRZEDAZ (-50%)! Zostalo tylko 7 dni do konca roku podatkowego!\n"
-        "Masz raport? Nie zostawiaj pieniedzy w urzedzie i nie plac posrednikom 100 funtow!\n\n"
-        "Tylko do **niedzieli do polnocy**, moja wizualna instrukcja Gov.uk za **GBP 14.99** (zamiast GBP 29.00). "
-        "Dowiedz sie, jak bezpiecznie odzyskac nadplacony podatek - za mniej niz koszt niedzielnego obiadu!\n\n"
+        "### 🚨 KONIEC ROKU PODATKOWEGO: Zostalo tylko 6 dni!\n"
+        "5 kwietnia przepadna bezpowrotnie Twoje pieniadze z najstarszego roku podatkowego (2021/22).\n\n"
+        "Masz raport? Nie zostawiaj pieniedzy w HMRC\n\n"
+        "Instrukcja P87 Gov.uk jest dostepna za **GBP 15.99**. "
+        "Dowiedz sie, jak bezpiecznie odzyskac podatek - za mniej niz koszt niedzielnego obiadu!\n\n"
         f"[KLIKNIJ - POBIERZ E-BOOK LUB ZLEC TO NAM (VIP)]({linktree_url})"
     )
 
