@@ -12,7 +12,7 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
-st.set_page_config(page_title="A Counting Pro System", page_icon="💰", layout="wide")
+st.set_page_config(page_title="Refund Checker | A Counting Pro", page_icon="💰", layout="wide")
 
 def get_tax_year():
     today = date.today()
@@ -138,7 +138,7 @@ def create_pdf(df, total_expense, uniform_amount, lang):
 
     return bytes(pdf.output())
 
-# Zabezpieczenie przed starymi sesjami w przeglądarkach klientów
+# Zabezpieczenie przed starymi sesjami w przeglądarce
 if "history" not in st.session_state or "Expense" not in st.session_state.history.columns:
     st.session_state.history = pd.DataFrame(
         columns=["Date", "From", "To", "Purpose", "Miles", "Agency", "Expense"]
@@ -158,7 +158,7 @@ h1, h2, h3, h4 { color: #002147 !important; font-family: Georgia, serif; }
 .brand-card { background: #fffdf8; border: 1px solid #e6dcc6; border-radius: 14px; padding: 18px; box-shadow: 0 4px 14px rgba(0, 33, 71, 0.06); }
 .cash-box { background-color: #e8f5e9; border-left: 5px solid #28a745; padding: 15px; border-radius: 5px; margin-top: 15px; }
 .expense-box { background-color: #e3f2fd; border-left: 5px solid #1565c0; padding: 12px; border-radius: 5px; margin-top: 10px; }
-.alert-box-red { background-color: #ffebee; border-left: 5px solid #f44336; padding: 15px; border-radius: 5px; margin-top: 15px; }
+.alert-box-grey { background-color: #f5f5f5; border-left: 5px solid #9e9e9e; padding: 15px; border-radius: 5px; margin-top: 15px; }
 .alert-box-green { background-color: #e8f5e9; border-left: 5px solid #4caf50; padding: 15px; border-radius: 5px; margin-top: 15px; }
 .alert-box-gold { background-color: #fff8e1; border-left: 5px solid #ffb300; padding: 15px; border-radius: 5px; margin-top: 15px; }
 </style>
@@ -166,13 +166,11 @@ h1, h2, h3, h4 { color: #002147 !important; font-family: Georgia, serif; }
 st.markdown(css, unsafe_allow_html=True)
 
 # ==========================================
-# 🕵️‍♀️ SKANER LOGO
+# SKANER LOGO I NAGŁÓWEK
 # ==========================================
 _, col_m, _ = st.columns([1, 2, 1])
 with col_m:
     logo_found = False
-    wszystkie_pliki = []
-    
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         wszystkie_pliki = os.listdir(script_dir)
@@ -183,25 +181,30 @@ with col_m:
                 st.image(sciezka, use_container_width=True)
                 logo_found = True
                 break
-    except Exception as e:
+    except Exception:
         pass
 
     if not logo_found:
         st.markdown("<h1 style='text-align:center;color:#002147;'>💰 A Counting Pro</h1>", unsafe_allow_html=True)
 
-    st.markdown("<h3 style='text-align:center;color:#D4AF37;font-style:italic;'>Financial health is mental wealth</h3>", unsafe_allow_html=True)
-    sub = "Tax Claim System for Care, Cleaning & NHS" if EN else "System Zwrotu Podatku (Care, Cleaning, NHS)"
+    st.markdown("<h2 style='text-align:center;color:#D4AF37;'>Refund Checker</h2>", unsafe_allow_html=True)
+    sub = "For Care Workers, Cleaners & NHS Professionals" if EN else "Dla branży Care, Cleaning i NHS"
     st.markdown(f"<p style='text-align:center;color:#002147;'><b>{sub}</b></p>", unsafe_allow_html=True)
 
 st.write("---")
 
 tab1, tab2, tab3 = st.tabs([
     "🧮 Calculator" if EN else "🧮 Kalkulator",
-    "📊 Report & Decision" if EN else "📊 Raport i Opłacalność",
-    "📘 How to Claim?" if EN else "📘 Jak odzyskać?",
+    "📊 Decision & Report" if EN else "📊 Wynik i Decyzja",
+    "📘 How to Claim?" if EN else "📘 Twój Plan Działania",
 ])
 
 with tab1:
+    if EN:
+        st.markdown("##### In 2 minutes, you'll know if your claim makes sense. If not — you buy nothing. If yes — we'll show you the next step.")
+    else:
+        st.markdown("##### W 2 minuty sprawdzisz, czy Twój claim ma sens. Jeśli nie — nic nie kupujesz. Jeśli tak — pokażę Ci, co kliknąć krok po kroku.")
+        
     col_in, col_math = st.columns([1, 1])
 
     with col_in:
@@ -273,14 +276,14 @@ with tab1:
                     <h4 style="color:#155724; margin:0;">💸 Estimated CASH to your account (20%): £{cash_estimate:.2f}</h4>
                 </div>
                 """, unsafe_allow_html=True)
-                st.caption("Assumes basic rate (20%) taxpayer, earnings above £12,570. Final decision: HMRC.")
+                st.caption("Assumes basic rate (20%) taxpayer. Final decision: HMRC.")
             else:
                 st.markdown(f"""
                 <div class="cash-box">
                     <h4 style="color:#155724; margin:0;">💸 Szacowana GOTÓWKA na konto (20%): £{cash_estimate:.2f}</h4>
                 </div>
                 """, unsafe_allow_html=True)
-                st.caption("Dotyczy platnikow 20%, zarobki powyzej kwoty wolnej. Decyzja należy do HMRC.")
+                st.caption("Dotyczy płatników 20%. Decyzja należy do HMRC.")
 
         st.info(f"{'Current Tax Year' if EN else 'Aktualny rok podatkowy'}: **{get_tax_year()}**")
 
@@ -304,7 +307,7 @@ with tab2:
         total_m_expense = st.session_state.history["Expense"].sum()
 
         st.write("### 👕 Uniform & Laundry" if EN else "### 👕 Uniform i Pranie")
-        add_uniform = st.checkbox("Include annual flat rate for washing uniform at home" if EN else "Dolicz roczny ryczalt za pranie firmowego uniformu w domu")
+        add_uniform = st.checkbox("Include annual flat rate for washing uniform at home" if EN else "Dolicz roczny ryczałt za pranie firmowego uniformu w domu")
 
         if add_uniform:
             sector_options = {
@@ -314,12 +317,12 @@ with tab2:
                 "Police Officer (£140)": 140.0,
                 "Other / Inne (enter manually)": None,
             }
-            selected = st.selectbox("Select your sector" if EN else "Wybierz swoja branze", list(sector_options.keys()))
+            selected = st.selectbox("Select your sector" if EN else "Wybierz swoją branżę", list(sector_options.keys()))
             if sector_options[selected] is None:
-                uniform_amount = st.number_input("Uniform allowance (£)" if EN else "Kwota ryczaltu (£)", min_value=0.0, value=60.0, step=1.0)
+                uniform_amount = st.number_input("Uniform allowance (£)" if EN else "Kwota ryczałtu (£)", min_value=0.0, value=60.0, step=1.0)
             else:
                 uniform_amount = sector_options[selected]
-                st.info(f"{'Flat rate for this sector' if EN else 'Ryczalt dla tej branzy'}: **£{uniform_amount:.0f}**")
+                st.info(f"{'Flat rate for this sector' if EN else 'Ryczałt dla tej branzy'}: **£{uniform_amount:.0f}**")
         else:
             uniform_amount = 0.0
 
@@ -336,21 +339,22 @@ with tab2:
             f"""
             <div data-testid="stMetricValue" style="text-align:center;">
                 <div style="font-size: 1rem; color: #5a5a5a; margin-bottom: -10px;">{'Estimated CASH (20%)' if EN else 'Gotówka na konto (20%)'}</div>
-                <div style="font-size: 2rem; color: #28a745; font-weight: bold;">£{cash_back_total:.2f}</div>
+                <div style="font-size: 2.5rem; color: #28a745; font-weight: bold;">£{cash_back_total:.2f}</div>
             </div>
             """, 
             unsafe_allow_html=True
         )
 
         # ==========================================
-        # 🔥 SILNIK REKOMENDACJI (LEJEK SPRZEDAŻOWY)
+        # 🔥 SILNIK REKOMENDACJI (DRABINA WARTOŚCI)
         # ==========================================
         st.write("---")
-        st.write("### 💡 " + ("Is it worth claiming?" if EN else "Weryfikacja Opłacalności"))
+        st.write("### 💡 " + ("Block A: Is it worth buying the Roadmap?" if EN else "Blok A: Czy warto kupić e-book?"))
         
-        ebook_price = 15.99
-        profit = cash_back_total - ebook_price
-        link_ebook = "https://linktr.ee/ACountingPro"
+        roadmap_price = 24.99
+        vip_price = 149.00
+        profit = cash_back_total - roadmap_price
+        link_roadmap = "https://linktr.ee/ACountingPro"
         link_vip = "https://linktr.ee/ACountingPro"
 
         if cash_back_total == 0:
@@ -362,74 +366,70 @@ with tab2:
         elif cash_back_total < 25.0:
             if EN:
                 st.markdown(f"""
-                <div class="alert-box-red">
-                    <h4 style="color:#b71c1c; margin-top:0;">🛑 NOT WORTH BUYING</h4>
-                    Estimated cash: <b>£{cash_back_total:.2f}</b> | E-book cost: £{ebook_price}.<br>
-                    <b>Your Profit: £{profit:.2f}</b><br><br>
-                    <b>Honestly? Do not buy our E-book.</b> Your return for a single year is too small. We value honesty over a quick sale. Download your free PDF below and try submitting it yourself, or multiply this by 4 years if applicable!
+                <div class="alert-box-grey">
+                    <h4 style="color:#424242; margin-top:0;">Block B: WHO IS THE FREE OPTION FOR?</h4>
+                    Estimated cash: <b>£{cash_back_total:.2f}</b><br><br>
+                    <b>Honestly? Do not buy our Premium system.</b> If this is just for 1 year, the return is too small. We value honesty. Stick to the Free PDF below, unless you have up to 4 previous years to claim (then multiply your result x4)!
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown(f"""
-                <div class="alert-box-red">
-                    <h4 style="color:#b71c1c; margin-top:0;">🛑 NIE OPŁACA CI SIĘ (Nie kupuj)</h4>
-                    Szacowana gotówka: <b>£{cash_back_total:.2f}</b> | Koszt E-booka: £{ebook_price}.<br>
-                    <b>Twój czysty zysk: £{profit:.2f}</b><br><br>
-                    <b>Szczerze? Nie kupuj naszej instrukcji.</b> Jeśli to kwota tylko za 1 rok, Twój zysk jest znikomy. Gramy w otwarte karty - szkoda Twoich pieniędzy. Pobierz darmowy raport, spróbuj zrobić to sam/a, chyba że masz do rozliczenia 4 lata wstecz (wtedy pomnóż ten wynik x4)!
+                <div class="alert-box-grey">
+                    <h4 style="color:#424242; margin-top:0;">Blok B: DLA KOGO JEST DARMOWA OPCJA</h4>
+                    Szacowana gotówka: <b>£{cash_back_total:.2f}</b><br><br>
+                    <b>Szczerze? Nie kupuj naszej płatnej Instrukcji.</b> Jeśli to kwota tylko za 1 rok, Twój zysk jest znikomy. Gramy w otwarte karty - szkoda Twoich pieniędzy. Zostań przy darmowej wersji. Pobierz darmowy raport PDF poniżej i spróbuj zrobić to sam/a, chyba że masz do rozliczenia 4 lata wstecz (wtedy pomnóż ten wynik x4)!
                 </div>
                 """, unsafe_allow_html=True)
                 
-        elif cash_back_total < 150.0:
+        elif cash_back_total <= 120.0:
             if EN:
                 st.markdown(f"""
                 <div class="alert-box-green">
-                    <h4 style="color:#1b5e20; margin-top:0;">✅ GREAT ROI: DO IT YOURSELF</h4>
-                    Estimated cash: <b>£{cash_back_total:.2f}</b> | E-book cost: £{ebook_price}.<br>
+                    <h4 style="color:#1b5e20; margin-top:0;">Block C: BUY THE ROADMAP FOR £24.99</h4>
+                    Estimated cash: <b>£{cash_back_total:.2f}</b> | Roadmap cost: £{roadmap_price}.<br>
                     <b>Pure Profit: £{profit:.2f}</b> (Multiply by up to 4 years!)<br><br>
-                    It is highly profitable for you to claim this! Don't pay an agency 30% commission. Invest in our visual step-by-step E-book and submit your claim safely in 15 minutes.
+                    It is highly profitable for you to claim this! Don't pay an agency a 30% commission. Grab our <b>HMRC Refund Roadmap</b>, avoid mistakes, and submit your claim safely.
                 </div>
                 """, unsafe_allow_html=True)
-                st.link_button("📘 BUY E-BOOK (£15.99)", link_ebook, type="primary", use_container_width=True)
+                st.link_button("📘 GET HMRC REFUND ROADMAP (£24.99)", link_roadmap, type="primary", use_container_width=True)
             else:
                 st.markdown(f"""
                 <div class="alert-box-green">
-                    <h4 style="color:#1b5e20; margin-top:0;">✅ IDEALNIE: ZRÓB TO SAM I ZYSKAJ</h4>
-                    Szacowana gotówka: <b>£{cash_back_total:.2f}</b> | Koszt E-booka: £{ebook_price}.<br>
+                    <h4 style="color:#1b5e20; margin-top:0;">Blok C: KUP E-BOOK ZA £24.99</h4>
+                    Szacowana gotówka: <b>£{cash_back_total:.2f}</b> | Koszt instrukcji: £{roadmap_price}.<br>
                     <b>Czysty zysk: £{profit:.2f}</b> (A pomnóż to przez 4 lata wstecz!).<br><br>
-                    Zdecydowanie opłaca Ci się po to schylić! Nie oddawaj prowizji pośrednikom. Zainwestuj w E-book Premium i wyślij wniosek bezbłędnie z własnej kanapy.
+                    Zdecydowanie opłaca Ci się po to schylić! Nie płać prowizji pośrednikom. Zainwestuj w <b>HMRC Refund Roadmap</b>, w którym uczę, jak odzyskać pieniądze samodzielnie i bez błędów.
                 </div>
                 """, unsafe_allow_html=True)
-                st.link_button("📘 KUP E-BOOK (£15.99)", link_ebook, type="primary", use_container_width=True)
+                st.link_button("📘 KUP HMRC REFUND ROADMAP (£24.99)", link_roadmap, type="primary", use_container_width=True)
                 
         else:
             if EN:
                 st.markdown(f"""
                 <div class="alert-box-gold">
-                    <h4 style="color:#e65100; margin-top:0;">🔥 HUGE CLAIM: DON'T LEAVE THIS AT HMRC</h4>
-                    Estimated cash: <b>£{cash_back_total:.2f}</b> | E-book cost: £{ebook_price}.<br>
-                    <b>Pure Profit: £{profit:.2f}</b> (Multiply by up to 4 years!)<br><br>
-                    This is a serious amount of money! Because your claim is so high, you have two safe options to get it back:
+                    <h4 style="color:#e65100; margin-top:0;">Block D: CHOOSE VIP FOR £149</h4>
+                    Estimated cash: <b>£{cash_back_total:.2f}</b> (Multiply by up to 4 years!)<br><br>
+                    This is a serious amount of money! You have a highly valuable claim. Choose the cheapest sensible option: do it yourself with our Roadmap, or let us do it for you if you have multiple agencies or fear making a mistake.
                 </div>
                 """, unsafe_allow_html=True)
                 c_btn1, c_btn2 = st.columns(2)
                 with c_btn1:
-                    st.link_button("📘 DO IT MYSELF (E-book £15.99)", link_ebook, use_container_width=True)
+                    st.link_button("📘 DIY: ROADMAP (£24.99)", link_roadmap, use_container_width=True)
                 with c_btn2:
-                    st.link_button("👑 DO IT FOR ME (VIP Service)", link_vip, type="primary", use_container_width=True)
+                    st.link_button(f"👑 DONE FOR YOU: VIP CLAIM (From £{vip_price:.0f})", link_vip, type="primary", use_container_width=True)
             else:
                 st.markdown(f"""
                 <div class="alert-box-gold">
-                    <h4 style="color:#e65100; margin-top:0;">🔥 GIGANTYCZNY ZWROT: £{cash_back_total:.2f}</h4>
-                    Szacowana gotówka: <b>£{cash_back_total:.2f}</b> | Koszt E-booka: £{ebook_price}.<br>
-                    <b>Czysty zysk: £{profit:.2f}</b> (A pomnóż to przez 4 lata wstecz!).<br><br>
-                    Zostawienie tych pieniędzy w urzędzie byłoby grzechem! Przy tak ogromnej kwocie masz dwie bezpieczne opcje odzyskania gotówki:
+                    <h4 style="color:#e65100; margin-top:0;">Blok D: WYBIERZ VIP ZA £149</h4>
+                    Szacowana gotówka: <b>£{cash_back_total:.2f}</b> (A pomnóż to przez 4 lata wstecz!).<br><br>
+                    To poważne pieniądze. Wybierz najtańszą sensowną opcję: zrób to sam z moją instrukcją (Roadmap), albo – jeśli masz kilka agencji lub boisz się błędu – zleć to mi. Zrobię to za Ciebie profesjonalnie w usłudze VIP.
                 </div>
                 """, unsafe_allow_html=True)
                 c_btn1, c_btn2 = st.columns(2)
                 with c_btn1:
-                    st.link_button("📘 ZROBIĘ TO SAM/A (E-book £15.99)", link_ebook, use_container_width=True)
+                    st.link_button("📘 ZRÓB TO SAM: ROADMAP (£24.99)", link_roadmap, use_container_width=True)
                 with c_btn2:
-                    st.link_button("👑 ZRÓBCIE TO ZA MNIE (Usługa VIP)", link_vip, type="primary", use_container_width=True)
+                    st.link_button(f"👑 ZRÓB TO ZA MNIE: VIP CLAIM (£{vip_price:.0f})", link_vip, type="primary", use_container_width=True)
 
         st.write("---")
         st.dataframe(st.session_state.history, use_container_width=True)
@@ -439,7 +439,7 @@ with tab2:
         with dl1:
             pdf_bytes = create_pdf(st.session_state.history, total_m_expense, uniform_amount, lang)
             st.download_button(
-                label="📥 Download PDF for HMRC" if EN else "📥 Pobierz bezpłatny Raport PDF",
+                label="📥 Download FREE PDF Report" if EN else "📥 Pobierz DARMOWY Raport PDF",
                 data=pdf_bytes,
                 file_name=f"HMRC_Mileage_{get_tax_year().replace('/','_')}.pdf",
                 mime="application/pdf",
@@ -467,32 +467,34 @@ with tab2:
 
 with tab3:
     if EN:
-        st.markdown("### 📘 A Counting Pro Claim System")
+        st.markdown("### 📘 The 3-Step Claim System")
+        st.markdown(
+            "Don't guess how much HMRC owes you. Check for free, then choose the best path:"
+        )
         st.markdown(
             """
 <div class="brand-card">
-<b>This app is the first step in our HMRC claim system:</b><br><br>
 <ul>
-<li><b>Step 1: Free App</b> — Filters your eligibility. Calculates your accurate Claim & Estimated Net Profit.</li>
-<li><b>Step 2: Free PDF Report</b> — Generates your evidence document for HMRC.</li>
-<li><b>Step 3: P87 E-book</b> — Premium visual Gov.uk guide. Do it yourself, avoid mistakes and 30% agency fees.</li>
-<li><b>Step 4: VIP Service</b> — Done-for-you support where an accountant does it all for you (best for high value claims).</li>
+<li><b>Level 1: Refund Checker (£0)</b> — This app. Filters your eligibility. If your claim is too low, we will honestly tell you not to buy anything.</li>
+<li><b>Level 2: HMRC Refund Roadmap (£24.99)</b> — Premium Gov.uk visual guide. Do it yourself, avoid mistakes and claim up to 4 years back without paying 30% agency fees. Includes HMRC letter templates.</li>
+<li><b>Level 3: VIP Claim Done For You (£149)</b> — Complex case? Multiple employers? Fear of making a mistake? A professional accountant handles the entire claim for you securely.</li>
 </ul>
 </div>
             """,
             unsafe_allow_html=True
         )
     else:
-        st.markdown("### 📘 System Odzyskiwania Podatku A Counting Pro")
+        st.markdown("### 📘 3-Stopniowy System A Counting Pro")
+        st.markdown(
+            "Nie zgaduj, ile HMRC może Ci oddać. Sprawdź to za darmo, a potem wybierz najtańszą sensowną opcję: samodzielnie albo z moją pomocą."
+        )
         st.markdown(
             """
 <div class="brand-card">
-<b>Nasza darmowa aplikacja to 1. krok w Twojej drodze po podatek:</b><br><br>
 <ul>
-<li><b>Krok 1: Aplikacja (Filtr)</b> — Szczerze weryfikuje opłacalność. Zlicza Twój szacowany zysk na czysto.</li>
-<li><b>Krok 2: Raport PDF</b> — Pobierasz darmowy, bezpieczny dowód z kwotami dla urzędu.</li>
-<li><b>Krok 3: E-book P87 (£15.99)</b> — Kupujesz wizualną instrukcję Gov.uk. Składasz wniosek samodzielnie i bezpiecznie, omijając drogie agencje.</li>
-<li><b>Krok 4: VIP Service</b> — Jeśli masz potężny zwrot i wolisz, żeby wzięła to na siebie licencjonowana księgowa.</li>
+<li><b>Poziom 1: Refund Checker (£0)</b> — Ta aplikacja. W 2 minuty sprawdzisz, czy Twój claim ma sens. Jeśli nie — nic nie kupujesz. Zostajesz z darmowym raportem.</li>
+<li><b>Poziom 2: HMRC Refund Roadmap (£24.99)</b> — Przewodnik premium dla osób, które mają realny claim. Uczy, jak odzyskać pieniądze bez płacenia pośrednikom, uniknąć błędów i cofnąć się o 4 lata wstecz. (W zestawie szablony listów do HMRC).</li>
+<li><b>Poziom 3: VIP Claim Done For You (£149)</b> — Jeśli nie chcesz ryzykować błędu albo masz kilka agencji, zrobię to za Ciebie w profesjonalnej usłudze VIP.</li>
 </ul>
 </div>
             """,
@@ -503,15 +505,15 @@ st.markdown("---")
 
 if EN:
     st.error(
-        "### 🚨 TAX YEAR END DEADLINE!\n"
+        "### 🚨 TAX YEAR END DEADLINE: Expiring in 4 days!\n"
         "On April 5th, unclaimed tax relief from 2021/2022 will be **lost forever**.\n\n"
-        "Got your report? Don't leave cash at HMRC and don't pay accountants a 30% commission!\n\n"
+        "Got your free report? If the app gave you the green light, don't leave your cash at HMRC!\n\n"
     )
 else:
     st.error(
-        "### 🚨 KONIEC ROKU PODATKOWEGO!\n"
+        "### 🚨 KONIEC ROKU PODATKOWEGO: Zostały tylko 4 dni!\n"
         "5 kwietnia przepadnie bezpowrotnie Twoja gotówka z najstarszego roku podatkowego (2021/22).\n\n"
-        "Masz już raport? Aplikacja dała Ci zielone światło? Nie zostawiaj pieniędzy w urzędzie i nie płać pośrednikom!\n\n"
+        "Masz już darmowy raport? Aplikacja dała Ci zielone światło? Nie zostawiaj swoich pieniędzy w urzędzie!\n\n"
     )
 
 st.markdown(
