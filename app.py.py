@@ -295,18 +295,18 @@ with tab2:
         st.write("---")
         
         # DECISION ENGINE
-        roadmap_price = 24.99
+        roadmap_price = 7.99
         link_url = "https://linktr.ee/ACountingPro"
 
         if cash_back_total < 25.0:
             msg = "Your claim is small. Use the free PDF below and try it yourself." if EN else "Twój zwrot jest niewielki. Pobierz darmowy raport i spróbuj rozliczyć się samodzielnie."
             st.info(msg)
         elif cash_back_total <= 120.0:
-            msg = f"It is profitable to claim this! Get our Roadmap for £{roadmap_price}." if EN else f"Zdecydowanie opłaca się po to sięgnąć! Kup nasz Roadmap za £{roadmap_price}."
+            msg = f"It is profitable to claim this! Get our P87 E-book for £{roadmap_price}." if EN else f"Zdecydowanie opłaca się po to sięgnąć! Kup nasz E-book P87 za £{roadmap_price}."
             st.success(msg)
-            st.link_button("📘 GET ROADMAP" if EN else "📘 KUP ROADMAP", link_url, type="primary")
+            st.link_button("📘 GET P87 E-BOOK" if EN else "📘 KUP E-BOOK P87", link_url, type="primary")
         else:
-            msg = "Serious money! You can do it yourself with our Roadmap or choose VIP." if EN else "To poważne pieniądze! Zrób to sam z Roadmapem lub wybierz opcję VIP."
+            msg = "Serious money! You can do it yourself with our P87 E-book or choose VIP." if EN else "To poważne pieniądze! Zrób to sam z P87 E-bookiem lub wybierz opcję VIP."
             st.warning(msg)
             st.link_button("👑 VIP CLAIM SERVICE", link_url, type="primary")
 
@@ -408,9 +408,9 @@ with tab2:
 with tab3:
     st.markdown("### 📘 A Counting Pro System")
     if EN:
-        st.write("1. Check for free. 2. Get Roadmap to do it yourself. 3. Or let us do it for you (VIP).")
+        st.write("1. Check for free. 2. Get P87 E-book to do it yourself. 3. Or let us do it for you (VIP).")
     else:
-        st.write("1. Sprawdź za darmo. 2. Kup Roadmap, by zrobić to samemu. 3. Lub zleć to nam (VIP).")
+        st.write("1. Sprawdź za darmo. 2. Kup E-book P87, by zrobić to samemu. 3. Lub zleć to nam (VIP).")
 
 st.markdown("---")
 # AKTUALIZACJA PO 5 KWIETNIA
