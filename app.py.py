@@ -5,6 +5,7 @@ from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from datetime import date
 import io
+import requests
 
 try:
     from PIL import Image
@@ -142,6 +143,9 @@ if "history" not in st.session_state or "Expense" not in st.session_state.histor
     st.session_state.history = pd.DataFrame(
         columns=["Date", "From", "To", "Purpose", "Miles", "Agency", "Expense"]
     )
+
+if "email_submitted" not in st.session_state:
+    st.session_state.email_submitted = False
 
 lang = st.sidebar.selectbox("Choose Language / Wybierz Język", ("EN", "PL"))
 EN = lang == "EN"
@@ -307,8 +311,97 @@ with tab2:
             st.link_button("👑 VIP CLAIM SERVICE", link_url, type="primary")
 
         st.write("---")
-        pdf_bytes = create_pdf(st.session_state.history, total_m_expense, uniform_amount, lang)
-        st.download_button(label="📥 Download FREE PDF" if EN else "📥 Pobierz DARMOWY PDF", data=pdf_bytes, file_name="A_Counting_Pro_Report.pdf", mime="application/pdf")
+
+        if not st.session_state.email_submitted:
+            box_header = "Your PDF is ready!" if EN else "Twój PDF jest gotowy!"
+            box_text = (
+                "Enter your email below and I'll send you the PDF + a free checklist of documents you need for HMRC"
+                if EN
+                else "Podaj email, a wyślę Ci PDF + darmową listę dokumentów do HMRC"
+            )
+            st.markdown(
+                f"""
+                <div style='background:#fff8e1;border:2px solid #D4AF37;border-radius:14px;padding:18px;margin-bottom:16px;'>
+                    <h4 style='margin:0 0 8px 0;'>{box_header}</h4>
+                    <p style='margin:0;font-size:14px;line-height:1.5;'>{box_text}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            with st.form("email_form", clear_on_submit=False):
+                email_input = st.text_input(
+                    "Email" if EN else "Twój email",
+                    placeholder="twoj@email.com",
+                    key="email_input"
+                )
+                
+                consent = st.checkbox(
+                    "I agree to receive HMRC tips from A Counting Pro" if EN else "Zgadzam się na otrzymywanie wskazówek HMRC od A Counting Pro",
+                    key="consent_checkbox"
+                )
+                
+                submit_btn = st.form_submit_button(
+                    "📧 Send me the PDF" if EN else "📧 Wyślij mi PDF",
+                    use_container_width=True,
+                    type="primary"
+                )
+                
+                if submit_btn:
+                    if not email_input or "@" not in email_input:
+                        st.error("Please enter a valid email" if EN else "Wpisz poprawny email")
+                    elif not consent:
+                        st.error("Please accept the consent" if EN else "Zaakceptuj zgodę")
+                    else:
+                        import requests
+                        
+                        headers = {
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                            "Authorization": f"Bearer {st.secrets['MAILERLITE_API_KEY']}"
+                        }
+                        
+                        data = {
+                            "email": email_input,
+                            "groups": [st.secrets["MAILERLITE_GROUP_ID"]]
+                        }
+                        
+                        try:
+                            response = requests.post(
+                                "https://connect.mailerlite.com/api/subscribers",
+                                headers=headers,
+                                json=data,
+                                timeout=10
+                            )
+                            if response.status_code in [200, 201]:
+                                st.session_state.email_submitted = True
+                                st.rerun()
+                            else:
+                                st.error("Something went wrong. Please try again." if EN else "Coś poszło nie tak. Spróbuj ponownie.")
+                        except Exception as e:
+                            st.error("Connection error. Please try again." if EN else "Błąd połączenia. Spróbuj ponownie.")
+        else:
+            pdf_bytes = create_pdf(st.session_state.history, total_m_expense, uniform_amount, lang)
+            st.download_button(label="📥 Download FREE PDF" if EN else "📥 Pobierz DARMOWY PDF", data=pdf_bytes, file_name="A_Counting_Pro_Report.pdf", mime="application/pdf")
+            go_text = (
+                "The 2026/27 tax year has started. Don't repeat January stress — A Counting Go saves your miles and receipts all year round, 7 days free."
+                if EN
+                else "Rok podatkowy 2026/27 się zaczął. Nie powtarzaj styczniowego stresu — A Counting Go zapisuje mile i paragony przez cały rok, 7 dni za darmo."
+            )
+            st.markdown(
+                f"""
+                <div style='background:#e8f5e9;border:2px solid #28a745;border-radius:14px;padding:16px;margin-top:16px;'>
+                    <p style='margin:0;font-size:14px;line-height:1.5;'>{go_text}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            go_button = "Try A Counting Go - 7 days free" if EN else "Testuj A Counting Go - 7 dni za darmo"
+            st.markdown(
+                f"""
+                <a href='https://acountinggo.netlify.app' target='_blank' style='display:inline-block;margin-top:12px;padding:12px 18px;border-radius:8px;background:#28a745;color:#ffffff;text-decoration:none;font-weight:bold;'>{go_button}</a>
+                """,
+                unsafe_allow_html=True,
+            )
     else:
         st.info("Add data in Calculator first." if EN else "Najpierw dodaj dane w Kalkulatorze.")
 
