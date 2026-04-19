@@ -6,7 +6,6 @@ from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from datetime import date
 import io
-import unicodedata
 
 try:
     from PIL import Image
@@ -32,11 +31,19 @@ def remove_polish_chars(text):
     return text
 
 
-def get_tax_year():
+def get_tax_years():
+    """Zwraca listę ostatnich 4 lat podatkowych (HMRC pozwala cofnąć się 4 lata)"""
     today = date.today()
     if today.month > 4 or (today.month == 4 and today.day >= 6):
-        return f"{today.year}/{today.year + 1}"
-    return f"{today.year - 1}/{today.year}"
+        current_start_year = today.year
+    else:
+        current_start_year = today.year - 1
+    
+    years = []
+    for i in range(5):
+        year = current_start_year - i
+        years.append(f"{year}/{year + 1}")
+    return years
 
 
 def save_to_mailerlite(email):
@@ -60,7 +67,7 @@ def save_to_mailerlite(email):
         return False
 
 
-def create_pdf(df, total_expense, uniform_amount, lang):
+def create_pdf(df, total_expense, uniform_amount, lang, tax_year):
     pdf = FPDF()
     pdf.add_page()
 
@@ -71,11 +78,10 @@ def create_pdf(df, total_expense, uniform_amount, lang):
 
     pdf.set_font("Helvetica", size=9)
     today_str = date.today().strftime("%d/%m/%Y")
-    tax_year = get_tax_year()
     line1 = (
-        f"Generated: {today_str}  |  Current Tax Year: {tax_year}"
+        f"Generated: {today_str}  |  Tax Year: {tax_year}"
         if lang == "EN"
-        else f"Wygenerowano: {today_str}  |  Aktualny Rok Podatkowy: {tax_year}"
+        else f"Wygenerowano: {today_str}  |  Rok Podatkowy: {tax_year}"
     )
     pdf.cell(0, 7, text=remove_polish_chars(line1), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(4)
@@ -182,7 +188,7 @@ def create_pdf(df, total_expense, uniform_amount, lang):
 # Inicjalizacja stanu sesji
 if "history" not in st.session_state or "Expense" not in st.session_state.history.columns:
     st.session_state.history = pd.DataFrame(
-        columns=["Date", "From", "To", "Purpose", "Miles", "Agency", "Expense"]
+        columns=["Date", "From", "To", "Purpose", "Miles", "Agency", "Expense", "TaxYear"]
     )
 
 if "email_submitted" not in st.session_state:
@@ -190,6 +196,14 @@ if "email_submitted" not in st.session_state:
 
 lang = st.sidebar.selectbox("Choose Language / Wybierz Język", ("EN", "PL"))
 EN = lang == "EN"
+
+# Wybór roku podatkowego
+tax_years_list = get_tax_years()
+selected_tax_year = st.sidebar.selectbox(
+    "Tax Year / Rok Podatkowy" if EN else "Rok Podatkowy / Tax Year",
+    tax_years_list,
+    help="HMRC allows claims up to 4 years back" if EN else "HMRC pozwala rozliczyć się do 4 lat wstecz"
+)
 
 css = """
 <style>
@@ -206,7 +220,9 @@ h1, h2, h3, h4 { color: #002147 !important; font-family: Georgia, serif; }
 .alert-box-green { background-color: #e8f5e9; border-left: 5px solid #4caf50; padding: 15px; border-radius: 5px; margin-top: 15px; }
 .alert-box-gold { background-color: #fff8e1; border-left: 5px solid #ffb300; padding: 15px; border-radius: 5px; margin-top: 15px; }
 .email-gate-box { background-color: #fff8e1; border: 2px solid #D4AF37; padding: 20px; border-radius: 10px; margin-top: 20px; margin-bottom: 20px; }
-.app-promo-box { background-color: #e8f5e9; border-left: 5px solid #28a745; padding: 20px; border-radius: 5px; margin-top: 20px; }
+.app-promo-box { background-color: #e8f5e9; border-left: 5px solid #28a745; padding: 20px; border-radius: 5px; margin-top: 20px; margin-bottom: 15px; }
+.ebook-promo-box { background-color: #fff8e1; border-left: 5px solid #D4AF37; padding: 20px; border-radius: 5px; margin-top: 20px; margin-bottom: 15px; }
+.linktree-promo-box { background-color: #e3f2fd; border-left: 5px solid #1565c0; padding: 20px; border-radius: 5px; margin-top: 20px; margin-bottom: 15px; }
 </style>
 """
 st.markdown(css, unsafe_allow_html=True)
@@ -236,6 +252,12 @@ with col_m:
 
 st.write("---")
 
+# Info o wybranym roku podatkowym
+if EN:
+    st.info(f"📅 Currently calculating for tax year: **{selected_tax_year}**. You can switch years in the sidebar. HMRC allows claims up to 4 years back.")
+else:
+    st.info(f"📅 Aktualnie liczysz dla roku podatkowego: **{selected_tax_year}**. Rok możesz zmienić w panelu bocznym. HMRC pozwala rozliczyć się do 4 lat wstecz.")
+
 tab1, tab2, tab3 = st.tabs([
     "🧮 Calculator" if EN else "🧮 Kalkulator",
     "📊 Decision & Report" if EN else "📊 Wynik i Decyzja",
@@ -244,9 +266,9 @@ tab1, tab2, tab3 = st.tabs([
 
 with tab1:
     if EN:
-        st.markdown("##### New Tax Year has started! Check how much you can reclaim for the last 4 years.")
+        st.markdown(f"##### Calculating for tax year {selected_tax_year}")
     else:
-        st.markdown("##### Nowy rok podatkowy właśnie ruszył! Sprawdź ile możesz odzyskać nawet za 4 lata wstecz.")
+        st.markdown(f"##### Liczymy dla roku podatkowego {selected_tax_year}")
         
     col_in, col_math = st.columns([1, 1])
 
@@ -316,21 +338,29 @@ with tab1:
     if st.button("➕ Add to Report" if EN else "➕ Dodaj do Raportu", use_container_width=True):
         new_row = pd.DataFrame({
             "Date": [d], "From": [from_loc], "To": [to_loc], "Purpose": [purpose],
-            "Miles": [m], "Agency": [a], "Expense": [expense],
+            "Miles": [m], "Agency": [a], "Expense": [expense], "TaxYear": [selected_tax_year]
         })
         st.session_state.history = pd.concat([st.session_state.history, new_row], ignore_index=True)
         st.toast("✅ Added!" if EN else "✅ Dodano!")
 
 with tab2:
-    if not st.session_state.history.empty:
-        total_m_expense = st.session_state.history["Expense"].sum()
+    # Filtruj dane tylko dla wybranego roku podatkowego
+    if "TaxYear" in st.session_state.history.columns:
+        df_filtered = st.session_state.history[st.session_state.history["TaxYear"] == selected_tax_year]
+    else:
+        df_filtered = st.session_state.history
+    
+    if not df_filtered.empty:
+        total_m_expense = df_filtered["Expense"].sum()
         add_uniform = st.checkbox("Include uniform laundry rate" if EN else "Dolicz ryczałt za pranie uniformu")
         uniform_amount = 60.0 if add_uniform else 0.0
 
         final_total = total_m_expense + uniform_amount
         cash_back_total = final_total * 0.20
         
+        st.write(f"**{'Tax Year' if EN else 'Rok podatkowy'}: {selected_tax_year}**")
         st.write("---")
+        
         c1, c2 = st.columns(2)
         c1.metric("Total Expense (P87)" if EN else "Koszt P87", f"£{final_total:.2f}")
         c2.metric("Estimated Refund" if EN else "Szacowany Zwrot", f"£{cash_back_total:.2f}")
@@ -338,20 +368,15 @@ with tab2:
         st.write("---")
         
         # DECISION ENGINE - komunikat w zależności od kwoty
-        ebook_price = 7.99
-        link_url = "https://linktr.ee/ACountingPro"
-
         if cash_back_total < 25.0:
             msg = "Your claim is small, but still worth recovering!" if EN else "Twój zwrot jest niewielki, ale wciąż warto go odzyskać!"
             st.info(msg)
         elif cash_back_total <= 120.0:
-            msg = f"It is profitable to claim this! Get our P87 E-book for £{ebook_price}." if EN else f"Zdecydowanie opłaca się po to sięgnąć! Kup nasz E-book P87 za £{ebook_price}."
+            msg = "It is profitable to claim this!" if EN else "Zdecydowanie opłaca się po to sięgnąć!"
             st.success(msg)
-            st.link_button("📘 GET P87 E-BOOK" if EN else "📘 KUP E-BOOK P87", link_url, type="primary")
         else:
-            msg = "Serious money! You can do it yourself with our E-book or choose VIP." if EN else "To poważne pieniądze! Zrób to sam z E-bookiem lub wybierz opcję VIP."
+            msg = "Serious money! Worth claiming back." if EN else "To poważne pieniądze! Warto je odzyskać."
             st.warning(msg)
-            st.link_button("👑 VIP CLAIM SERVICE", link_url, type="primary")
 
         st.write("---")
         
@@ -401,47 +426,98 @@ with tab2:
                             st.error("Something went wrong. Please try again." if EN else "Coś poszło nie tak. Spróbuj ponownie.")
         
         else:
-            # Po podaniu emaila - PDF + promo A Counting Go
-            pdf_bytes = create_pdf(st.session_state.history, total_m_expense, uniform_amount, lang)
+            # Po podaniu emaila - PDF + 3 promocje (E-book, aplikacja, Linktree)
+            pdf_bytes = create_pdf(df_filtered, total_m_expense, uniform_amount, lang, selected_tax_year)
             st.download_button(
                 label="📥 Download FREE PDF" if EN else "📥 Pobierz DARMOWY PDF",
                 data=pdf_bytes,
-                file_name="A_Counting_Pro_Report.pdf",
+                file_name=f"A_Counting_Pro_Report_{selected_tax_year.replace('/', '-')}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
             
-            # Promo A Counting Go
+            st.write("---")
+            
+            # PROMOCJA 1: E-book P87
+            if EN:
+                st.markdown("""
+                <div class="ebook-promo-box">
+                    <h4 style='color: #002147; margin-top: 0;'>📘 Want step-by-step guidance?</h4>
+                    <p style='color: #002147;'>The P87 E-book walks you through the HMRC form, screen by screen. Includes mileage log template and common mistakes to avoid.</p>
+                    <p style='color: #002147; margin-bottom: 0;'><b>Only £7.99 - save hours of stress.</b></p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.link_button("📘 Get P87 E-book - £7.99", "https://linktr.ee/ACountingPro", use_container_width=True)
+            else:
+                st.markdown("""
+                <div class="ebook-promo-box">
+                    <h4 style='color: #002147; margin-top: 0;'>📘 Potrzebujesz przewodnika krok po kroku?</h4>
+                    <p style='color: #002147;'>E-book P87 prowadzi Cię przez formularz HMRC, ekran po ekranie. Zawiera wzór dziennika mil i pułapki, których należy unikać.</p>
+                    <p style='color: #002147; margin-bottom: 0;'><b>Tylko £7.99 - oszczędzisz godziny stresu.</b></p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.link_button("📘 Kup E-book P87 - £7.99", "https://linktr.ee/ACountingPro", use_container_width=True)
+            
+            # PROMOCJA 2: A Counting Go (aplikacja płatna)
             if EN:
                 st.markdown("""
                 <div class="app-promo-box">
-                    <h4 style='color: #002147; margin-top: 0;'>🎯 Great, you have your report!</h4>
-                    <p style='color: #002147;'>You've just calculated how much HMRC owes you for the past 4 years.</p>
-                    <p style='color: #002147;'>But the new tax year 2026/27 has already started. Don't repeat the same January stress next year.</p>
-                    <p style='color: #002147; margin-bottom: 0;'><b>A Counting Go tracks your miles and receipts automatically - all year round. 7 days free.</b></p>
+                    <h4 style='color: #002147; margin-top: 0;'>🚗 Never again search for receipts in January</h4>
+                    <p style='color: #002147;'>You've just calculated what HMRC owes you. Don't repeat this stress next year.</p>
+                    <p style='color: #002147; margin-bottom: 0;'><b>A Counting Go tracks your miles and receipts automatically - all year round. 7 days free, then £4.99/month.</b></p>
                 </div>
                 """, unsafe_allow_html=True)
-                st.link_button("🚗 Try A Counting Go - 7 days free", "https://acountinggo.netlify.app", type="primary", use_container_width=True)
+                st.link_button("🚗 Try A Counting Go - 7 days free", "https://acountinggo.netlify.app", use_container_width=True)
             else:
                 st.markdown("""
                 <div class="app-promo-box">
-                    <h4 style='color: #002147; margin-top: 0;'>🎯 Świetnie, masz swój raport!</h4>
-                    <p style='color: #002147;'>Właśnie policzyłaś ile HMRC jest Ci winny za ostatnie 4 lata.</p>
-                    <p style='color: #002147;'>Ale nowy rok podatkowy 2026/27 już się zaczął. Nie powtarzaj styczniowego stresu w przyszłym roku.</p>
-                    <p style='color: #002147; margin-bottom: 0;'><b>A Counting Go zapisuje mile i paragony automatycznie, przez cały rok. 7 dni za darmo.</b></p>
+                    <h4 style='color: #002147; margin-top: 0;'>🚗 Nigdy więcej nie szukaj paragonów w styczniu</h4>
+                    <p style='color: #002147;'>Właśnie policzyłaś ile HMRC jest Ci winny. Nie powtarzaj tego stresu w przyszłym roku.</p>
+                    <p style='color: #002147; margin-bottom: 0;'><b>A Counting Go zapisuje mile i paragony automatycznie, przez cały rok. 7 dni za darmo, potem £4.99/miesiąc.</b></p>
                 </div>
                 """, unsafe_allow_html=True)
-                st.link_button("🚗 Testuj A Counting Go - 7 dni za darmo", "https://acountinggo.netlify.app", type="primary", use_container_width=True)
+                st.link_button("🚗 Testuj A Counting Go - 7 dni za darmo", "https://acountinggo.netlify.app", use_container_width=True)
+            
+            # PROMOCJA 3: Linktree (wszystkie opcje)
+            if EN:
+                st.markdown("""
+                <div class="linktree-promo-box">
+                    <h4 style='color: #002147; margin-top: 0;'>👑 Need more help?</h4>
+                    <p style='color: #002147;'>Check all my services: Claim Audit (£49), VIP Service (£149), monthly bookkeeping, and Self Assessment.</p>
+                    <p style='color: #002147; margin-bottom: 0;'><b>Financial health is mental wealth 🧘‍♀️</b></p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.link_button("👑 See all services", "https://linktr.ee/ACountingPro", use_container_width=True)
+            else:
+                st.markdown("""
+                <div class="linktree-promo-box">
+                    <h4 style='color: #002147; margin-top: 0;'>👑 Potrzebujesz większego wsparcia?</h4>
+                    <p style='color: #002147;'>Sprawdź wszystkie moje usługi: Audyt Wniosku (£49), Usługa VIP (£149), miesięczna księgowość i Self Assessment.</p>
+                    <p style='color: #002147; margin-bottom: 0;'><b>Financial health is mental wealth 🧘‍♀️</b></p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.link_button("👑 Zobacz wszystkie usługi", "https://linktr.ee/ACountingPro", use_container_width=True)
     
     else:
-        st.info("Add data in Calculator first." if EN else "Najpierw dodaj dane w Kalkulatorze.")
+        if EN:
+            st.info(f"No data for tax year {selected_tax_year} yet. Add a trip in the Calculator first.")
+        else:
+            st.info(f"Brak danych dla roku podatkowego {selected_tax_year}. Najpierw dodaj trasę w Kalkulatorze.")
 
 with tab3:
     st.markdown("### 📘 A Counting Pro System")
     if EN:
-        st.write("1. Check for free. 2. Get P87 E-book to do it yourself. 3. Or let us do it for you (VIP).")
+        st.write("1. **Check for free** - use this calculator")
+        st.write("2. **Get P87 E-book (£7.99)** - do it yourself with step-by-step guidance")
+        st.write("3. **Or let us do it for you** - VIP Service (£149) or full bookkeeping")
+        st.write("")
+        st.link_button("👉 See all options", "https://linktr.ee/ACountingPro", use_container_width=True)
     else:
-        st.write("1. Sprawdź za darmo. 2. Kup E-book P87, by zrobić to samemu. 3. Lub zleć to nam (VIP).")
+        st.write("1. **Sprawdź za darmo** - użyj tego kalkulatora")
+        st.write("2. **Kup E-book P87 (£7.99)** - zrób to samodzielnie z przewodnikiem krok po kroku")
+        st.write("3. **Lub zleć to nam** - Usługa VIP (£149) lub pełna księgowość")
+        st.write("")
+        st.link_button("👉 Zobacz wszystkie opcje", "https://linktr.ee/ACountingPro", use_container_width=True)
 
 st.markdown("---")
 if EN:
