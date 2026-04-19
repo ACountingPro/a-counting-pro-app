@@ -1,11 +1,12 @@
 import streamlit as st
 import os
 import pandas as pd
+import requests
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from datetime import date
 import io
-import requests
+import unicodedata
 
 try:
     from PIL import Image
@@ -15,17 +16,55 @@ except ImportError:
 
 st.set_page_config(page_title="Refund Checker | A Counting Pro", page_icon="💰", layout="wide")
 
+
+def remove_polish_chars(text):
+    """Zamienia polskie znaki na odpowiedniki ASCII dla PDF"""
+    if not isinstance(text, str):
+        text = str(text)
+    replacements = {
+        'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n',
+        'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z',
+        'Ą': 'A', 'Ć': 'C', 'Ę': 'E', 'Ł': 'L', 'Ń': 'N',
+        'Ó': 'O', 'Ś': 'S', 'Ź': 'Z', 'Ż': 'Z'
+    }
+    for pl, en in replacements.items():
+        text = text.replace(pl, en)
+    return text
+
+
 def get_tax_year():
     today = date.today()
     if today.month > 4 or (today.month == 4 and today.day >= 6):
         return f"{today.year}/{today.year + 1}"
     return f"{today.year - 1}/{today.year}"
 
+
+def save_to_mailerlite(email):
+    """Zapisuje email do MailerLite, zwraca True jeśli sukces"""
+    try:
+        api_key = st.secrets["MAILERLITE_API_KEY"]
+        group_id = st.secrets["MAILERLITE_GROUP_ID"]
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        data = {"email": email, "groups": [group_id]}
+        response = requests.post(
+            "https://connect.mailerlite.com/api/subscribers",
+            headers=headers, json=data, timeout=10
+        )
+        return response.status_code in [200, 201]
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
+        return False
+
+
 def create_pdf(df, total_expense, uniform_amount, lang):
     pdf = FPDF()
     pdf.add_page()
 
-    title = "Mileage & Tax Relief Report" if lang == "EN" else "Raport Przebiegu i Kosztów"
+    title = "Mileage & Tax Relief Report" if lang == "EN" else "Raport Przebiegu i Kosztow"
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(0, 10, text=f"{title} - A Counting Pro", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
     pdf.ln(4)
@@ -38,19 +77,19 @@ def create_pdf(df, total_expense, uniform_amount, lang):
         if lang == "EN"
         else f"Wygenerowano: {today_str}  |  Aktualny Rok Podatkowy: {tax_year}"
     )
-    pdf.cell(0, 7, text=line1, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 7, text=remove_polish_chars(line1), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(4)
 
     col_widths = [24, 30, 30, 30, 20, 26, 30]
     headers = (
         ["Date", "From", "To", "Purpose", "Miles", "Agency(p)", "Expense(GBP)"]
         if lang == "EN"
-        else ["Data", "Skąd", "Dokąd", "Cel", "Mile", "Agencja(p)", "Koszt(GBP)"]
+        else ["Data", "Skad", "Dokad", "Cel", "Mile", "Agencja(p)", "Koszt(GBP)"]
     )
 
     pdf.set_font("Helvetica", "B", 8)
     for w, h in zip(col_widths, headers):
-        pdf.cell(w, 9, text=h, border=1)
+        pdf.cell(w, 9, text=remove_polish_chars(h), border=1)
     pdf.ln()
 
     pdf.set_font("Helvetica", size=8)
@@ -66,7 +105,7 @@ def create_pdf(df, total_expense, uniform_amount, lang):
             f"{float(row['Expense']):.2f}",
         ]
         for w, v in zip(col_widths, vals):
-            pdf.cell(w, 9, text=v[:14], border=1)
+            pdf.cell(w, 9, text=remove_polish_chars(v[:14]), border=1)
         pdf.ln()
 
     pdf.ln(8)
@@ -81,22 +120,22 @@ def create_pdf(df, total_expense, uniform_amount, lang):
         pdf.ln(2)
         miles_line = f"Total allowable expense from miles: GBP {total_expense:.2f}"
     else:
-        pdf.cell(0, 6, text=f"Całkowita suma mil (wpisz to na Gov.uk): {total_miles_pdf:.1f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.cell(0, 6, text=f"Kwota zwrócona przez pracodawcę (wpisz to na Gov.uk): GBP {total_agency_paid:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 6, text=remove_polish_chars(f"Calkowita suma mil (wpisz to na Gov.uk): {total_miles_pdf:.1f}"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 6, text=remove_polish_chars(f"Kwota zwrocona przez pracodawce (wpisz to na Gov.uk): GBP {total_agency_paid:.2f}"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(2)
-        miles_line = f"Suma kosztów za mile: GBP {total_expense:.2f}"
+        miles_line = f"Suma kosztow za mile: GBP {total_expense:.2f}"
 
     pdf.set_font("Helvetica", size=10)
-    pdf.cell(0, 6, text=miles_line, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 6, text=remove_polish_chars(miles_line), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     final_expense = total_expense
     if uniform_amount > 0:
         uni_text = (
             f"+ GBP {uniform_amount:.2f} (Uniform Laundry Flat Rate)"
             if lang == "EN"
-            else f"+ GBP {uniform_amount:.2f} (Zryczałtowany koszt prania uniformu)"
+            else f"+ GBP {uniform_amount:.2f} (Zryczaltowany koszt prania uniformu)"
         )
-        pdf.cell(0, 6, text=uni_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 6, text=remove_polish_chars(uni_text), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         final_expense += uniform_amount
 
     pdf.ln(4)
@@ -104,7 +143,7 @@ def create_pdf(df, total_expense, uniform_amount, lang):
     if lang == "EN":
         pdf.cell(0, 8, text=f"TOTAL ALLOWABLE EXPENSE (Enter in P87 form): GBP {final_expense:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     else:
-        pdf.cell(0, 8, text=f"ŁĄCZNY KOSZT DO WPISANIA W P87 (Gov.uk): GBP {final_expense:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 8, text=remove_polish_chars(f"LACZNY KOSZT DO WPISANIA W P87 (Gov.uk): GBP {final_expense:.2f}"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.ln(3)
     pdf.set_font("Helvetica", "B", 13)
@@ -112,7 +151,7 @@ def create_pdf(df, total_expense, uniform_amount, lang):
     if lang == "EN":
         pdf.cell(0, 10, text=f"ESTIMATED CASH REFUND TO YOUR ACCOUNT (20%): GBP {cash_refund:.2f} *", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     else:
-        pdf.cell(0, 10, text=f"SZACOWANA GOTÓWKA NA TWOJE KONTO (20%): GBP {cash_refund:.2f} *", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 10, text=remove_polish_chars(f"SZACOWANA GOTOWKA NA TWOJE KONTO (20%): GBP {cash_refund:.2f} *"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.ln(8)
     pdf.set_font("Helvetica", "I", 8)
@@ -125,12 +164,12 @@ def create_pdf(df, total_expense, uniform_amount, lang):
         )
     else:
         disclaimer = (
-            "* WAŻNE: 'Łączny Koszt do Wpisania w P87' to wartość, którą wpisujesz w formularzu na Gov.uk. "
-            "HMRC następnie wypłaci Ci 20% tej kwoty jako gotówkę na konto (stawka podstawowa). "
-            "Zakłada zarobki powyżej kwoty wolnej (GBP 12,570) i zapłacony podatek. "
-            "Ostateczna decyzja należy do HMRC."
+            "* WAZNE: 'Laczny Koszt do Wpisania w P87' to wartosc, ktora wpisujesz w formularzu na Gov.uk. "
+            "HMRC nastepnie wyplaci Ci 20% tej kwoty jako gotowke na konto (stawka podstawowa). "
+            "Zaklada zarobki powyzej kwoty wolnej (GBP 12,570) i zaplacony podatek. "
+            "Ostateczna decyzja nalezy do HMRC."
         )
-    pdf.multi_cell(0, 5, text=disclaimer)
+    pdf.multi_cell(0, 5, text=remove_polish_chars(disclaimer))
 
     pdf.ln(4)
     pdf.set_font("Helvetica", "I", 9)
@@ -139,6 +178,8 @@ def create_pdf(df, total_expense, uniform_amount, lang):
 
     return bytes(pdf.output())
 
+
+# Inicjalizacja stanu sesji
 if "history" not in st.session_state or "Expense" not in st.session_state.history.columns:
     st.session_state.history = pd.DataFrame(
         columns=["Date", "From", "To", "Purpose", "Miles", "Agency", "Expense"]
@@ -164,6 +205,8 @@ h1, h2, h3, h4 { color: #002147 !important; font-family: Georgia, serif; }
 .alert-box-grey { background-color: #f5f5f5; border-left: 5px solid #9e9e9e; padding: 15px; border-radius: 5px; margin-top: 15px; }
 .alert-box-green { background-color: #e8f5e9; border-left: 5px solid #4caf50; padding: 15px; border-radius: 5px; margin-top: 15px; }
 .alert-box-gold { background-color: #fff8e1; border-left: 5px solid #ffb300; padding: 15px; border-radius: 5px; margin-top: 15px; }
+.email-gate-box { background-color: #fff8e1; border: 2px solid #D4AF37; padding: 20px; border-radius: 10px; margin-top: 20px; margin-bottom: 20px; }
+.app-promo-box { background-color: #e8f5e9; border-left: 5px solid #28a745; padding: 20px; border-radius: 5px; margin-top: 20px; }
 </style>
 """
 st.markdown(css, unsafe_allow_html=True)
@@ -294,50 +337,49 @@ with tab2:
 
         st.write("---")
         
-        # DECISION ENGINE
-        roadmap_price = 7.99
+        # DECISION ENGINE - komunikat w zależności od kwoty
+        ebook_price = 7.99
         link_url = "https://linktr.ee/ACountingPro"
 
         if cash_back_total < 25.0:
-            msg = "Your claim is small. Use the free PDF below and try it yourself." if EN else "Twój zwrot jest niewielki. Pobierz darmowy raport i spróbuj rozliczyć się samodzielnie."
+            msg = "Your claim is small, but still worth recovering!" if EN else "Twój zwrot jest niewielki, ale wciąż warto go odzyskać!"
             st.info(msg)
         elif cash_back_total <= 120.0:
-            msg = f"It is profitable to claim this! Get our P87 E-book for £{roadmap_price}." if EN else f"Zdecydowanie opłaca się po to sięgnąć! Kup nasz E-book P87 za £{roadmap_price}."
+            msg = f"It is profitable to claim this! Get our P87 E-book for £{ebook_price}." if EN else f"Zdecydowanie opłaca się po to sięgnąć! Kup nasz E-book P87 za £{ebook_price}."
             st.success(msg)
             st.link_button("📘 GET P87 E-BOOK" if EN else "📘 KUP E-BOOK P87", link_url, type="primary")
         else:
-            msg = "Serious money! You can do it yourself with our P87 E-book or choose VIP." if EN else "To poważne pieniądze! Zrób to sam z P87 E-bookiem lub wybierz opcję VIP."
+            msg = "Serious money! You can do it yourself with our E-book or choose VIP." if EN else "To poważne pieniądze! Zrób to sam z E-bookiem lub wybierz opcję VIP."
             st.warning(msg)
             st.link_button("👑 VIP CLAIM SERVICE", link_url, type="primary")
 
         st.write("---")
-
+        
+        # EMAIL GATE - dla WSZYSTKICH, zawsze przed PDF
         if not st.session_state.email_submitted:
-            box_header = "Your PDF is ready!" if EN else "Twój PDF jest gotowy!"
-            box_text = (
-                "Enter your email below and I'll send you the PDF + a free checklist of documents you need for HMRC"
-                if EN
-                else "Podaj email, a wyślę Ci PDF + darmową listę dokumentów do HMRC"
-            )
-            st.markdown(
-                f"""
-                <div style='background:#fff8e1;border:2px solid #D4AF37;border-radius:14px;padding:18px;margin-bottom:16px;'>
-                    <h4 style='margin:0 0 8px 0;'>{box_header}</h4>
-                    <p style='margin:0;font-size:14px;line-height:1.5;'>{box_text}</p>
+            if EN:
+                st.markdown("""
+                <div class="email-gate-box">
+                    <h3 style='color: #002147; margin-top: 0;'>📧 Your PDF is ready!</h3>
+                    <p style='color: #002147; margin-bottom: 0;'>Enter your email below and I'll send you the PDF + a free checklist of documents you need for HMRC.</p>
                 </div>
-                """,
-                unsafe_allow_html=True,
-            )
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="email-gate-box">
+                    <h3 style='color: #002147; margin-top: 0;'>📧 Twój PDF jest gotowy!</h3>
+                    <p style='color: #002147; margin-bottom: 0;'>Podaj email, a wyślę Ci PDF + darmową listę dokumentów do HMRC.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
             with st.form("email_form", clear_on_submit=False):
                 email_input = st.text_input(
                     "Email" if EN else "Twój email",
-                    placeholder="twoj@email.com",
-                    key="email_input"
+                    placeholder="twoj@email.com"
                 )
                 
-                consent = st.checkbox(
-                    "I agree to receive HMRC tips from A Counting Pro" if EN else "Zgadzam się na otrzymywanie wskazówek HMRC od A Counting Pro",
-                    key="consent_checkbox"
+                checkbox_consent = st.checkbox(
+                    "I agree to receive HMRC tips from A Counting Pro" if EN else "Zgadzam się na otrzymywanie wskazówek HMRC od A Counting Pro"
                 )
                 
                 submit_btn = st.form_submit_button(
@@ -349,59 +391,48 @@ with tab2:
                 if submit_btn:
                     if not email_input or "@" not in email_input:
                         st.error("Please enter a valid email" if EN else "Wpisz poprawny email")
-                    elif not consent:
-                        st.error("Please accept the consent" if EN else "Zaakceptuj zgodę")
+                    elif not checkbox_consent:
+                        st.error("Please accept the terms" if EN else "Zaakceptuj regulamin")
                     else:
-                        import requests
-                        
-                        headers = {
-                            "Content-Type": "application/json",
-                            "Accept": "application/json",
-                            "Authorization": f"Bearer {st.secrets['MAILERLITE_API_KEY']}"
-                        }
-                        
-                        data = {
-                            "email": email_input,
-                            "groups": [st.secrets["MAILERLITE_GROUP_ID"]]
-                        }
-                        
-                        try:
-                            response = requests.post(
-                                "https://connect.mailerlite.com/api/subscribers",
-                                headers=headers,
-                                json=data,
-                                timeout=10
-                            )
-                            if response.status_code in [200, 201]:
-                                st.session_state.email_submitted = True
-                                st.rerun()
-                            else:
-                                st.error("Something went wrong. Please try again." if EN else "Coś poszło nie tak. Spróbuj ponownie.")
-                        except Exception as e:
-                            st.error("Connection error. Please try again." if EN else "Błąd połączenia. Spróbuj ponownie.")
+                        if save_to_mailerlite(email_input):
+                            st.session_state.email_submitted = True
+                            st.rerun()
+                        else:
+                            st.error("Something went wrong. Please try again." if EN else "Coś poszło nie tak. Spróbuj ponownie.")
+        
         else:
+            # Po podaniu emaila - PDF + promo A Counting Go
             pdf_bytes = create_pdf(st.session_state.history, total_m_expense, uniform_amount, lang)
-            st.download_button(label="📥 Download FREE PDF" if EN else "📥 Pobierz DARMOWY PDF", data=pdf_bytes, file_name="A_Counting_Pro_Report.pdf", mime="application/pdf")
-            go_text = (
-                "The 2026/27 tax year has started. Don't repeat January stress — A Counting Go saves your miles and receipts all year round, 7 days free."
-                if EN
-                else "Rok podatkowy 2026/27 się zaczął. Nie powtarzaj styczniowego stresu — A Counting Go zapisuje mile i paragony przez cały rok, 7 dni za darmo."
+            st.download_button(
+                label="📥 Download FREE PDF" if EN else "📥 Pobierz DARMOWY PDF",
+                data=pdf_bytes,
+                file_name="A_Counting_Pro_Report.pdf",
+                mime="application/pdf",
+                use_container_width=True
             )
-            st.markdown(
-                f"""
-                <div style='background:#e8f5e9;border:2px solid #28a745;border-radius:14px;padding:16px;margin-top:16px;'>
-                    <p style='margin:0;font-size:14px;line-height:1.5;'>{go_text}</p>
+            
+            # Promo A Counting Go
+            if EN:
+                st.markdown("""
+                <div class="app-promo-box">
+                    <h4 style='color: #002147; margin-top: 0;'>🎯 Great, you have your report!</h4>
+                    <p style='color: #002147;'>You've just calculated how much HMRC owes you for the past 4 years.</p>
+                    <p style='color: #002147;'>But the new tax year 2026/27 has already started. Don't repeat the same January stress next year.</p>
+                    <p style='color: #002147; margin-bottom: 0;'><b>A Counting Go tracks your miles and receipts automatically - all year round. 7 days free.</b></p>
                 </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            go_button = "Try A Counting Go - 7 days free" if EN else "Testuj A Counting Go - 7 dni za darmo"
-            st.markdown(
-                f"""
-                <a href='https://acountinggo.netlify.app' target='_blank' style='display:inline-block;margin-top:12px;padding:12px 18px;border-radius:8px;background:#28a745;color:#ffffff;text-decoration:none;font-weight:bold;'>{go_button}</a>
-                """,
-                unsafe_allow_html=True,
-            )
+                """, unsafe_allow_html=True)
+                st.link_button("🚗 Try A Counting Go - 7 days free", "https://acountinggo.netlify.app", type="primary", use_container_width=True)
+            else:
+                st.markdown("""
+                <div class="app-promo-box">
+                    <h4 style='color: #002147; margin-top: 0;'>🎯 Świetnie, masz swój raport!</h4>
+                    <p style='color: #002147;'>Właśnie policzyłaś ile HMRC jest Ci winny za ostatnie 4 lata.</p>
+                    <p style='color: #002147;'>Ale nowy rok podatkowy 2026/27 już się zaczął. Nie powtarzaj styczniowego stresu w przyszłym roku.</p>
+                    <p style='color: #002147; margin-bottom: 0;'><b>A Counting Go zapisuje mile i paragony automatycznie, przez cały rok. 7 dni za darmo.</b></p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.link_button("🚗 Testuj A Counting Go - 7 dni za darmo", "https://acountinggo.netlify.app", type="primary", use_container_width=True)
+    
     else:
         st.info("Add data in Calculator first." if EN else "Najpierw dodaj dane w Kalkulatorze.")
 
@@ -413,7 +444,6 @@ with tab3:
         st.write("1. Sprawdź za darmo. 2. Kup E-book P87, by zrobić to samemu. 3. Lub zleć to nam (VIP).")
 
 st.markdown("---")
-# AKTUALIZACJA PO 5 KWIETNIA
 if EN:
     st.error("### 🚀 NEW TAX YEAR 2026/27 IS HERE!\nYou can now claim for the past 4 years. Don't leave your money at HMRC.")
 else:
