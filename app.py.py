@@ -61,15 +61,33 @@ def get_tax_years():
     return years
 
 
-def calculate_mileage_expense(total_miles):
+def get_amap_rate(tax_year):
+    """Returns AMAP rate per mile for first 10,000 miles based on tax year.
+    HMRC raised AMAP rate from 45p to 55p effective 6 April 2026.
+    Tax year 2026/27 and later: 55p
+    Earlier tax years: 45p (legacy rate)
     """
-    Liczy koszt mil wg stawek HMRC (45p do 10k, 25p powyżej).
+    start_year = int(tax_year.split('/')[0])
+    if start_year >= 2026:
+        return 0.55
+    else:
+        return 0.45
+
+
+def calculate_mileage_expense(total_miles, tax_year=None):
+    """
+    Liczy koszt mil wg stawek HMRC (45p/55p do 10k w zależności od roku, 25p powyżej).
+    Od 6 kwietnia 2026 HMRC podniosło AMAP z 45p do 55p za milę (pierwsze 10,000 mil).
     Stosuje się do obu ścieżek: PAYE (approved mileage allowance) i SE (simplified expenses).
     """
-    if total_miles <= 10000:
-        return total_miles * HMRC_RATE_PER_MILE_FIRST_10K
+    if tax_year is not None:
+        rate_first_10k = get_amap_rate(tax_year)
     else:
-        return (10000 * HMRC_RATE_PER_MILE_FIRST_10K) + \
+        rate_first_10k = HMRC_RATE_PER_MILE_FIRST_10K
+    if total_miles <= 10000:
+        return total_miles * rate_first_10k
+    else:
+        return (10000 * rate_first_10k) + \
                ((total_miles - 10000) * HMRC_RATE_PER_MILE_ABOVE_10K)
 
 
@@ -260,17 +278,18 @@ def create_pdf_paye(df, total_expense, uniform_amount, lang, tax_year):
 
     pdf.ln(8)
     pdf.set_font("Helvetica", "I", 8)
+    amap_rate_pdf = int(get_amap_rate(tax_year) * 100)
     if lang == "EN":
         disclaimer = (
-            "* IMPORTANT: This assumes you are on PAYE (agency employee) and pay Income Tax at basic rate. "
-            "'Total Relief' is what you enter in the P87 form on Gov.uk. HMRC then refunds you 20% in cash. "
-            "Assumes earnings above Personal Allowance (GBP 12,570). Final decision rests with HMRC."
+            f"* IMPORTANT: This assumes you are on PAYE (agency employee) and pay Income Tax at basic rate. "
+            f"'Total Relief' is what you enter in the P87 form on Gov.uk. HMRC then refunds you 20% in cash. "
+            f"Assumes earnings above Personal Allowance (GBP 12,570). HMRC AMAP rate used: {amap_rate_pdf}p per mile (first 10,000 business miles) for tax year {tax_year}. Final decision rests with HMRC."
         )
     else:
         disclaimer = (
-            "* WAZNE: Zaklada zatrudnienie PAYE (pracownik agencji) i stawke podstawowa podatku. "
-            "'Laczna Ulga' to wartosc do wpisania w formularzu P87 na Gov.uk. HMRC zwraca 20% w gotowce. "
-            "Zaklada zarobki powyzej kwoty wolnej (GBP 12,570). Ostateczna decyzja nalezy do HMRC."
+            f"* WAZNE: Zaklada zatrudnienie PAYE (pracownik agencji) i stawke podstawowa podatku. "
+            f"'Laczna Ulga' to wartosc do wpisania w formularzu P87 na Gov.uk. HMRC zwraca 20% w gotowce. "
+            f"Zaklada zarobki powyzej kwoty wolnej (GBP 12,570). Zastosowana stawka HMRC AMAP: {amap_rate_pdf}p za mile (pierwsze 10,000 mil sluzbowych) dla roku podatkowego {tax_year}. Ostateczna decyzja nalezy do HMRC."
         )
     pdf.multi_cell(0, 5, text=remove_polish_chars(disclaimer))
 
@@ -366,19 +385,22 @@ def create_pdf_se(total_miles, total_mileage_expense, other_expenses, annual_pro
 
     pdf.ln(6)
     pdf.set_font("Helvetica", "I", 8)
+    amap_rate_pdf = int(get_amap_rate(tax_year) * 100)
     if lang == "EN":
         disclaimer = (
-            "* IMPORTANT: Self-Employed do NOT file P87. You file Self Assessment (SA100 + SA103) annually. "
-            "This is an estimate of tax saving, not a cash refund. You pay less tax because your profit is lower. "
-            "Assumes Class 4 NI at main rate (6%). Final decision rests with HMRC. "
-            "For accurate records throughout the year, use A Counting Go app (acountinggo.netlify.app)."
+            f"* IMPORTANT: Self-Employed do NOT file P87. You file Self Assessment (SA100 + SA103) annually. "
+            f"This is an estimate of tax saving, not a cash refund. You pay less tax because your profit is lower. "
+            f"HMRC AMAP rate used: {amap_rate_pdf}p per mile (first 10,000 business miles) for tax year {tax_year}. "
+            f"Assumes Class 4 NI at main rate (6%). Final decision rests with HMRC. "
+            f"For accurate records throughout the year, use A Counting Go app (acountinggo.netlify.app)."
         )
     else:
         disclaimer = (
-            "* WAZNE: Samozatrudnieni NIE skladaja P87. Skladasz Self Assessment (SA100 + SA103) raz w roku. "
-            "To jest szacunek oszczednosci, nie zwrot gotowki. Placisz mniej podatku, bo Twoj zysk jest nizszy. "
-            "Zaklada NI Class 4 w stawce podstawowej (6%). Ostateczna decyzja nalezy do HMRC. "
-            "Do codziennej ewidencji przez caly rok uzyj aplikacji A Counting Go (acountinggo.netlify.app)."
+            f"* WAZNE: Samozatrudnieni NIE skladaja P87. Skladasz Self Assessment (SA100 + SA103) raz w roku. "
+            f"To jest szacunek oszczednosci, nie zwrot gotowki. Placisz mniej podatku, bo Twoj zysk jest nizszy. "
+            f"Zastosowana stawka HMRC AMAP: {amap_rate_pdf}p za mile (pierwsze 10,000 mil sluzbowych) dla roku podatkowego {tax_year}. "
+            f"Zaklada NI Class 4 w stawce podstawowej (6%). Ostateczna decyzja nalezy do HMRC. "
+            f"Do codziennej ewidencji przez caly rok uzyj aplikacji A Counting Go (acountinggo.netlify.app)."
         )
     pdf.multi_cell(0, 5, text=remove_polish_chars(disclaimer))
 
@@ -587,6 +609,12 @@ if is_paye:
         else:
             st.markdown(f"##### Liczymy zwrot P87 dla roku podatkowego {selected_tax_year}")
 
+        if selected_tax_year.startswith("2026"):
+            if EN:
+                st.info("🆕 NEW: HMRC raised the mileage rate from 45p to 55p per mile from 6 April 2026 (first 10,000 business miles). This calculator uses the updated rate for tax year 2026/27.")
+            else:
+                st.info("🆕 NOWOŚĆ: HMRC podniosło stawkę za milę z 45p na 55p od 6 kwietnia 2026 (pierwsze 10,000 mil służbowych). Kalkulator używa nowej stawki dla roku podatkowego 2026/27.")
+
         col_in, col_math = st.columns([1, 1])
 
         with col_in:
@@ -609,14 +637,16 @@ if is_paye:
                                 help="How much your employer/agency pays per mile"
                                 if EN else "Ile agencja/pracodawca płaci za milę")
 
-            hmrc_total = calculate_mileage_expense(m)
+            amap_rate = get_amap_rate(selected_tax_year)
+            hmrc_total = calculate_mileage_expense(m, selected_tax_year)
             agency_total = m * (a / 100)
             expense = max(0.0, hmrc_total - agency_total)
 
         with col_math:
             st.write("#### 🔍 Calculation" if EN else "#### 🔍 Wyliczenia")
             st.write(f"**{'Miles counted' if EN else 'Liczba mil'}:** {m:.1f}")
-            st.write(f"**{'HMRC Allowance' if EN else 'Limit HMRC'}:** £{hmrc_total:.2f}")
+            amap_rate_display = int(amap_rate * 100)
+            st.write(f"**{'HMRC Allowance (' + str(amap_rate_display) + 'p)' if EN else 'Limit HMRC (' + str(amap_rate_display) + 'p)'}:** £{hmrc_total:.2f}")
             st.write(f"**{'Employer paid' if EN else 'Pracodawca zapłacił'}:** £{agency_total:.2f}")
 
             st.write("---")
@@ -825,6 +855,12 @@ else:
             st.markdown("##### Szybki szacunek Self Assessment")
             st.markdown("*To jest szybki szacunek. Do codziennego zapisywania mil i paragonów przez cały rok użyj **A Counting Go** (£4.99/mc).*")
 
+        if selected_tax_year.startswith("2026"):
+            if EN:
+                st.info("🆕 NEW: HMRC raised the mileage rate from 45p to 55p per mile from 6 April 2026 (first 10,000 business miles). This calculator uses the updated rate for tax year 2026/27.")
+            else:
+                st.info("🆕 NOWOŚĆ: HMRC podniosło stawkę za milę z 45p na 55p od 6 kwietnia 2026 (pierwsze 10,000 mil służbowych). Kalkulator używa nowej stawki dla roku podatkowego 2026/27.")
+
         st.write("---")
 
         col_in, col_math = st.columns([1, 1])
@@ -855,13 +891,15 @@ else:
             )
 
         with col_math:
-            mileage_expense = calculate_mileage_expense(annual_miles)
+            amap_rate = get_amap_rate(selected_tax_year)
+            mileage_expense = calculate_mileage_expense(annual_miles, selected_tax_year)
             total_expenses = mileage_expense + other_expenses
             tax_result = calculate_se_tax_saving(total_expenses, annual_profit)
 
             st.write("#### 🔍 " + ("Your numbers" if EN else "Twoje liczby"))
             st.write(f"**{'Business miles' if EN else 'Mile biznesowe'}:** {annual_miles:.0f}")
-            st.write(f"**{'Mileage expense (simplified)' if EN else 'Koszt mil (uproszczony)'}:** £{mileage_expense:.2f}")
+            amap_rate_display = int(amap_rate * 100)
+            st.write(f"**{'Mileage expense (' + str(amap_rate_display) + 'p/mile, simplified)' if EN else 'Koszt mil (' + str(amap_rate_display) + 'p/mila, uproszczony)'}:** £{mileage_expense:.2f}")
             st.write(f"**{'Other expenses' if EN else 'Inne koszty'}:** £{other_expenses:.2f}")
             st.write(f"**{'TOTAL expenses' if EN else 'RAZEM koszty'}:** £{total_expenses:.2f}")
 
