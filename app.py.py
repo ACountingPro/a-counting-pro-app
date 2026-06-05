@@ -850,10 +850,10 @@ else:
     with tab1:
         if EN:
             st.markdown("##### Quick Self Assessment estimate")
-            st.markdown("*This is a quick estimate. For daily tracking of miles and receipts all year round, use **A Counting Go** (£4.99/month).*")
+            st.markdown("*This is a quick estimate. For daily tracking of miles and receipts all year round, use **A Counting Go** (£6.99/month).*")
         else:
             st.markdown("##### Szybki szacunek Self Assessment")
-            st.markdown("*To jest szybki szacunek. Do codziennego zapisywania mil i paragonów przez cały rok użyj **A Counting Go** (£4.99/mc).*")
+            st.markdown("*To jest szybki szacunek. Do codziennego zapisywania mil i paragonów przez cały rok użyj **A Counting Go** (£6.99/mc).*")
 
         if selected_tax_year.startswith("2026"):
             if EN:
@@ -1078,7 +1078,7 @@ else:
                             <li>Photograph receipts on the go</li>
                             <li>Year-end report ready for SA103</li>
                         </ul>
-                        <p style='color: #155724; margin-bottom: 0;'><b>7 days free, then £4.99/month.</b></p>
+                        <p style='color: #155724; margin-bottom: 0;'><b>7 days free, then £6.99/month.</b></p>
                     </div>
                     """, unsafe_allow_html=True)
                     st.link_button("🚗 Start A Counting Go — 7 days free", "https://acountinggo.netlify.app", use_container_width=True)
@@ -1093,7 +1093,7 @@ else:
                             <li>Zdjęcia paragonów w telefonie</li>
                             <li>Roczny raport gotowy do SA103</li>
                         </ul>
-                        <p style='color: #155724; margin-bottom: 0;'><b>7 dni za darmo, potem £4.99/miesiąc.</b></p>
+                        <p style='color: #155724; margin-bottom: 0;'><b>7 dni za darmo, potem £6.99/miesiąc.</b></p>
                     </div>
                     """, unsafe_allow_html=True)
                     st.link_button("🚗 Zacznij A Counting Go — 7 dni za darmo", "https://acountinggo.netlify.app", use_container_width=True)
